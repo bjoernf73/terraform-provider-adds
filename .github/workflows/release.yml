@@ -14,7 +14,33 @@ permissions:
   contents: write
 
 jobs:
+  verify-main:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      release_allowed: ${{ steps.verify.outputs.release_allowed }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1635a48bc8557fd212fa902bebf # v4.2.2
+        with:
+          fetch-depth: 0
+      - name: Check whether tag points to main
+        id: verify
+        env:
+          TAG_REF: ${{ github.ref }}
+        run: |
+          git fetch origin main
+          tag_commit="$(git rev-parse "${TAG_REF}^{commit}")"
+          if git merge-base --is-ancestor "$tag_commit" origin/main; then
+            echo "release_allowed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "release_allowed=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Skipping release because the tag does not point to a commit reachable from main."
+          fi
+
   goreleaser:
+    needs: verify-main
+    if: needs.verify-main.outputs.release_allowed == 'true'
     runs-on: ubuntu-latest
     env:
       GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}

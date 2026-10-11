@@ -78,7 +78,7 @@ terraform {
   required_providers {
     adlc = {
       source  = "bjoernf73/adlc"
-      version = "0.0.30"
+      version = "0.0.32"
     }
   }
 }
@@ -170,7 +170,7 @@ Releases are **automatically built** via GitHub Actions when you push a tag to t
 
 ```sh
 # Create and push a new version
-git tag -s v0.0.30
+git tag -s v0.0.32
 git push github v0.0.30       # Triggers GitHub Actions build and release 
 ```
 
