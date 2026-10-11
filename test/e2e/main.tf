@@ -197,6 +197,30 @@ data "adlc_json_gpo_export" "domain_gpo3" {
   }
 }
 
+data "adlc_backup_gpo_export" "domain_gpo3" {
+  count = var.transport == "ssh" ? 1 : 0
+
+  name = adlc_backup_gpo.domain_gpo3[0].target_name
+
+  lifecycle {
+    postcondition {
+      condition     = lower(self.id) == lower(adlc_backup_gpo.domain_gpo3[0].id)
+      error_message = "Backup export must identify the imported Domain - GPO3 policy."
+    }
+
+    postcondition {
+      condition = alltrue([
+        for filename in ["Backup.xml", "gpreport.xml"] :
+        anytrue([
+          for exported_path in nonsensitive(keys(self.files)) :
+          lower(exported_path) == lower("{${self.backup_id}}/${filename}")
+        ])
+      ])
+      error_message = "GPO3 backup export must contain native GPMC backup metadata."
+    }
+  }
+}
+
 # Links the freshly imported GPO onto the smoke OU, exercising the create path (New-GPLink).
 # ssh-gated to match the GPO imports it references.
 resource "adlc_gpo_links" "smoke" {

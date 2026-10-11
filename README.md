@@ -43,6 +43,7 @@ or **SSH**.
 | `adlc_organizational_unit` | An existing OU, by slash path or distinguished name |
 | `adlc_gpo` | An existing Group Policy Object, by display name or GUID |
 | `adlc_json_gpo_export` | A live GPO's SYSVOL content, as JSON |
+| `adlc_backup_gpo_export` | A live GPO as native GPMC backup files, base64-encoded |
 
 ## Documentation
 

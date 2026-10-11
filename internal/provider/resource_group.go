@@ -123,7 +123,8 @@ func (r *groupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Default:  booldefault.StaticBool(false),
 				MarkdownDescription: "Allow the `managed_by` principal to change the membership list, the **Manager can update membership list** " +
 					"checkbox in Active Directory Users and Computers. This is not a stored attribute: it adds an Allow access " +
-					"control entry granting `WriteProperty` on the `member` attribute. Requires `managed_by`.",
+					"control entry granting `WriteProperty` on the `member` attribute. Requires `managed_by`. Defaults to `false`, " +
+					"which removes that entry for the manager; do not also manage it with `adlc_access_rule`.",
 			},
 			"category": schema.StringAttribute{
 				Optional:            true,
@@ -149,6 +150,9 @@ func (r *groupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 			"distinguished_name": schema.StringAttribute{
 				Computed:            true,
 				MarkdownDescription: "Distinguished name of the group. Changes when the group is renamed or moved.",
+				PlanModifiers: []planmodifier.String{
+					useGroupStateUnlessChanged{attributes: []string{"name", "path"}},
+				},
 			},
 			"sid": schema.StringAttribute{
 				Computed:            true,
@@ -160,6 +164,9 @@ func (r *groupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 			"managed_by_dn": schema.StringAttribute{
 				Computed:            true,
 				MarkdownDescription: "Resolved distinguished name of `managed_by`.",
+				PlanModifiers: []planmodifier.String{
+					useGroupStateUnlessChanged{attributes: []string{"managed_by"}},
+				},
 			},
 		},
 	}
@@ -227,6 +234,37 @@ func (r *groupResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanR
 		"Group scope conversion blocked by nesting",
 		groupScopeConversionError(preflight),
 	)
+}
+
+// useGroupStateUnlessChanged keeps a computed value from state unless one of its source
+// attributes changes, so unrelated updates do not replace resources that reference it.
+type useGroupStateUnlessChanged struct {
+	attributes []string
+}
+
+func (m useGroupStateUnlessChanged) Description(_ context.Context) string {
+	return "Use prior state for unknown values unless a source attribute changes."
+}
+
+func (m useGroupStateUnlessChanged) MarkdownDescription(ctx context.Context) string {
+	return m.Description(ctx)
+}
+
+func (m useGroupStateUnlessChanged) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
+	if req.StateValue.IsNull() || !resp.PlanValue.IsUnknown() {
+		return
+	}
+
+	for _, attribute := range m.attributes {
+		var planned, prior types.String
+		resp.Diagnostics.Append(req.Plan.GetAttribute(ctx, path.Root(attribute), &planned)...)
+		resp.Diagnostics.Append(req.State.GetAttribute(ctx, path.Root(attribute), &prior)...)
+		if resp.Diagnostics.HasError() || planned.IsUnknown() || !planned.Equal(prior) {
+			return
+		}
+	}
+
+	resp.PlanValue = req.StateValue
 }
 
 func groupScopeConversionError(p *ad.GroupScopePreflight) string {

@@ -547,6 +547,28 @@ data "adlc_json_gpo_export" "domain_gpo4" {
   }
 }
 
+data "adlc_backup_gpo_export" "defender" {
+  name = adlc_json_gpo.imports["DoD Microsoft Defender Antivirus STIG Computer v2r4.json"].target_name
+
+  lifecycle {
+    postcondition {
+      condition     = lower(self.id) == lower(adlc_json_gpo.imports["DoD Microsoft Defender Antivirus STIG Computer v2r4.json"].id)
+      error_message = "Backup export must identify the Defender GPO imported from JSON."
+    }
+
+    postcondition {
+      condition = alltrue([
+        for filename in ["Backup.xml", "gpreport.xml", "DomainSysvol/GPO/Machine/Registry.pol"] :
+        anytrue([
+          for exported_path in nonsensitive(keys(self.files)) :
+          lower(exported_path) == lower("{${self.backup_id}}/${filename}")
+        ])
+      ])
+      error_message = "Defender backup export must contain GPMC metadata and the machine Registry.pol."
+    }
+  }
+}
+
 output "domain" {
   value = {
     distinguished_name = data.adlc_domain.current.distinguished_name

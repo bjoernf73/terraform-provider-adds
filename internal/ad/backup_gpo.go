@@ -8,10 +8,11 @@ import (
 )
 
 const (
-	backupGPOCommon = "backup_gpo_common.ps1"
-	backupGPOEnsure = "backup_gpo_ensure.ps1"
-	backupGPORead   = "backup_gpo_read.ps1"
-	backupGPODelete = "backup_gpo_delete.ps1"
+	backupGPOCommon     = "backup_gpo_common.ps1"
+	backupGPOEnsure     = "backup_gpo_ensure.ps1"
+	backupGPORead       = "backup_gpo_read.ps1"
+	backupGPODelete     = "backup_gpo_delete.ps1"
+	backupGPOExportRead = "backup_gpo_export_read.ps1"
 )
 
 // BackupGPOFile is a single file copied into the payload, relative to the backup
@@ -71,6 +72,26 @@ type BackupGPO struct {
 	VersionNumber     int64 `json:"version_number"`
 	ComputerADVersion int64 `json:"computer_ad_version"`
 	UserADVersion     int64 `json:"user_ad_version"`
+}
+
+type BackupGPOExport struct {
+	Exists   bool              `json:"exists"`
+	GUID     string            `json:"guid"`
+	BackupID string            `json:"backup_id"`
+	Files    map[string]string `json:"files"`
+}
+
+func ExportBackupGPO(ctx context.Context, c *client.Client, name string) (*BackupGPOExport, error) {
+	script, err := buildScript(c, map[string]any{"name": name}, commonScript, backupGPOCommon, backupGPOExportRead)
+	if err != nil {
+		return nil, err
+	}
+
+	var result BackupGPOExport
+	if err := c.RunPowerShellJSON(ctx, script, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
 }
 
 // EnsureBackupGPO imports a GPO backup into the target GPO, creating it if needed.

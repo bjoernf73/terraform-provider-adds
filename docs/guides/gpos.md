@@ -21,14 +21,34 @@ recreates the GPO.
 | Free-text substitution | Not supported | `replacements`, a plain string map |
 | Coverage | Everything `Import-GPO` supports | Registry settings, security template, audit settings, comments, scripts, Group Policy Preferences - not links, ACLs or WMI filters |
 
+### Exporting a live GPO
+
+A live GPO can be exported in either format, regardless of whether it was created
+manually, imported from JSON, or imported from a backup:
+
+- [`adlc_json_gpo_export`](../data-sources/json_gpo_export.md) returns JSON for
+  `adlc_json_gpo`, with portable security-principal tokens.
+- [`adlc_backup_gpo_export`](../data-sources/backup_gpo_export.md) runs `Backup-GPO`
+  and returns native GPMC backup files in a sensitive map of relative paths to base64
+  contents. Use `local_sensitive_file` from `hashicorp/local` with `content_base64`
+  to save these files under `<path>/<backup_name>/`, then use that folder with
+  `adlc_backup_gpo` in a later configuration or apply. The import resource needs the
+  local folder to exist during planning.
+
+Backup exports create a new snapshot on every read, including a new backup GUID and
+timestamps. The remote temporary directory is removed after export. Both formats store
+policy contents in Terraform state, so protect that state as well as any saved files.
+Exporting a backup does not manage links or generate a cross-domain migration table.
+
 ### Which PowerShell runs Group Policy operations
 
 The `GroupPolicy` module is not native to PowerShell 7. Under `pwsh` it loads through the
 Windows PowerShell Compatibility layer, which prints warnings and returns *deserialized*
-objects, so nested properties can be lost. Every GPO operation (`adlc_backup_gpo`,
-`adlc_json_gpo`, `adlc_gpo_links`, `adlc_gpo_permission`, `adlc_gpo_security_filter`,
-`adlc_gpo_wmi_filter` and the `adlc_gpo` data source) therefore runs under Windows PowerShell
-(`powershell.exe`), where the module is native, while everything else keeps using `pwsh`.
+objects, so nested properties can be lost. Scripts that import this module therefore
+default to Windows PowerShell (`powershell.exe`), where it is native. This includes GPO
+imports, the `adlc_gpo` data source, JSON and backup exports, permissions, security
+filtering and WMI-filter assignment. LDAP-only GPO links and backup/JSON resource reads
+use `powershell_path` instead (default `pwsh`).
 
 Override this with the provider's `gpo_powershell_path` setting - for example set it to `pwsh`
 to force the compatibility layer, or to a full path if `powershell.exe` is not on `PATH`. The
