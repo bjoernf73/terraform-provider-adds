@@ -2,9 +2,9 @@
 page_title: "Connecting over WinRM and SSH"
 subcategory: "Guides"
 description: |-
-  How the provider reaches the Windows host: choosing a transport, configuring WinRM
-  (basic, NTLM, Kerberos) and SSH (password, key), and the limitations observed with
-  OpenSSH on Windows.
+  How the provider reaches the Windows host: WinRM Basic, NTLM and Kerberos over HTTP
+  or HTTPS, SSH password or private-key authentication, host verification, and the
+  limitations observed with OpenSSH on Windows.
 ---
 
 # Connecting over WinRM and SSH
@@ -27,32 +27,55 @@ HTTP across a trust boundary.
 
 ## WinRM
 
-### Basic
+WinRM supports **Basic**, **NTLM** and **Kerberos** authentication. Each can be used
+over HTTP or HTTPS; `winrm_use_tls` selects HTTPS and defaults the port to 5986 (HTTP
+defaults to port 5985). The examples below show each combination. `insecure` controls
+validation of the WinRM server's TLS certificate; it does not select an authentication
+mechanism.
 
-The simplest option, intended for inside-domain use over HTTP, or over HTTPS when the
-host presents a trusted certificate:
+### Basic over HTTP
+
+Basic sends the username and password as HTTP authentication credentials. Use HTTP only
+on a trusted network; HTTPS is recommended otherwise.
 
 ```hcl
 provider "adlc" {
-  transport = "winrm"
-  host      = "dc1.contoso.local"
-  username  = "CONTOSO\\svc-adlc"
-  password  = var.password
+  transport     = "winrm"
+  host          = "dc1.contoso.local"
+  winrm_auth    = "basic"
+  winrm_use_tls = false
+  username      = "CONTOSO\\svc-adlc"
+  password      = var.password
 }
 ```
 
-Add `winrm_use_tls = true` for HTTPS (port 5986). `insecure = true` skips certificate
-validation — acceptable only for lab use; prefer a trusted certificate.
-
-### NTLM
+### Basic over HTTPS
 
 ```hcl
 provider "adlc" {
-  transport  = "winrm"
-  host       = "dc1.contoso.local"
-  winrm_auth = "ntlm"
-  username   = "CONTOSO\\svc-adlc"
-  password   = var.password
+  transport     = "winrm"
+  host          = "dc1.contoso.local"
+  winrm_auth    = "basic"
+  winrm_use_tls = true
+  username      = "CONTOSO\\svc-adlc"
+  password      = var.password
+}
+```
+
+The target must present a certificate trusted by the machine running Terraform and valid
+for the host name. `insecure = true` skips this server-certificate validation and is
+appropriate only for isolated testing.
+
+### NTLM over HTTP
+
+```hcl
+provider "adlc" {
+  transport     = "winrm"
+  host          = "dc1.contoso.local"
+  winrm_auth    = "ntlm"
+  winrm_use_tls = false
+  username      = "CONTOSO\\svc-adlc"
+  password      = var.password
 }
 ```
 
@@ -60,29 +83,59 @@ NTLM authenticates per connection, and the server closes connections between ope
 A pooled connection can therefore be rejected with a transient `401`; the provider
 retries these automatically (the script never ran, so a retry is safe).
 
-### Kerberos
+### NTLM over HTTPS
 
-Kerberos needs a little more wiring because the Kerberos library the provider uses does
-**not** read the Windows ticket cache — it authenticates with an explicit username,
-password and realm, and it needs a `krb5.conf` file, which Windows does not ship.
+```hcl
+provider "adlc" {
+  transport     = "winrm"
+  host          = "dc1.contoso.local"
+  winrm_auth    = "ntlm"
+  winrm_use_tls = true
+  username      = "CONTOSO\\svc-adlc"
+  password      = var.password
+}
+```
+
+### Kerberos over HTTP
+
+Kerberos uses the supplied account credentials and realm. The Kerberos library does not
+automatically use the operating system's default ticket cache, and Windows does not ship
+with a `krb5.conf` file. If no config path is specified, the provider generates a basic
+configuration using the target host as the KDC.
 
 ```hcl
 provider "adlc" {
   transport            = "winrm"
   host                 = "dc1.contoso.local"
   winrm_auth           = "kerberos"
+  winrm_use_tls        = false
   winrm_kerberos_realm = "CONTOSO.LOCAL"
   username             = "svc-adlc"
   password             = var.password
 }
 ```
 
-What you must provide:
+### Kerberos over HTTPS
 
-- **`winrm_kerberos_realm`** — required. The realm is upper-cased for you, so
+```hcl
+provider "adlc" {
+  transport            = "winrm"
+  host                 = "dc1.contoso.local"
+  winrm_auth           = "kerberos"
+  winrm_use_tls        = true
+  winrm_kerberos_realm = "CONTOSO.LOCAL"
+  username             = "svc-adlc"
+  password             = var.password
+}
+```
+
+Kerberos settings:
+
+- **`winrm_kerberos_realm`** — the realm is upper-cased for you, so
   `contoso.local` and `CONTOSO.LOCAL` are equivalent.
-- **`password`** — required. The Windows ticket cache is not used; authentication is
-  always username + password against the realm.
+- **`password`** — used with username for Kerberos authentication. To use an explicit
+  credential cache instead, set `winrm_kerberos_ccache_path` to its path on the machine
+  running Terraform. The provider does not discover the OS ticket cache automatically.
 - **`username`** — give it bare (`svc-adlc`). A NetBIOS or UPN form
   (`CONTOSO\svc-adlc`, `svc-adlc@contoso.local`) also works; the provider strips the
   prefix/suffix, since the realm is supplied separately.
@@ -100,30 +153,85 @@ Optional overrides:
 | --- | --- |
 | `winrm_kerberos_config_path` | Use your own `krb5.conf` instead of the generated one. |
 | `winrm_kerberos_spn` | Override the service principal name (default `HTTP/<host>`). |
-| `winrm_kerberos_ccache_path` | Point at an existing credential cache. |
+| `winrm_kerberos_ccache_path` | Use an existing Kerberos credential cache on the Terraform machine. |
 
 If the host named in `host` is not itself a KDC, supply a `krb5.conf` via
 `winrm_kerberos_config_path` whose `[realms]` block lists a reachable KDC.
 
+### WinRM client certificates
+
+WinRM HTTPS uses a **server** certificate to protect and authenticate the endpoint. The
+provider does not currently support authenticating to WinRM with a client certificate;
+the supported WinRM mechanisms are Basic, NTLM and Kerberos. `insecure` only disables
+server-certificate validation and does not enable client-certificate authentication.
+
 ## SSH
 
-SSH uses the Windows OpenSSH server. Authenticate with a password or a private key:
+SSH uses the Windows OpenSSH server. Password and private-key authentication are both
+supported. The provider accepts private-key **PEM contents** in `ssh_private_key_pem`;
+it has no separate private-key-path setting. The private key must be readable by the
+machine running Terraform and its matching public key must be authorized for the remote
+SSH account.
+
+### SSH password authentication
+
+```hcl
+provider "adlc" {
+  transport = "ssh"
+  host      = "dc1.contoso.local"
+  username  = "svc-adlc"
+  password  = var.password
+}
+```
+
+### SSH private key loaded from a file
+
+Use Terraform's `file()` function to read the PEM file and `pathexpand()` to expand a
+home-directory path:
 
 ```hcl
 provider "adlc" {
   transport           = "ssh"
   host                = "dc1.contoso.local"
   username            = "svc-adlc"
-  ssh_private_key_pem = var.ssh_key
+  ssh_private_key_pem = file(pathexpand("~/.ssh/id_ed25519"))
 }
 ```
 
-Host key verification is required unless `insecure = true`. Provide the expected key
-one of these ways:
+### SSH private key supplied as a PEM value
+
+The value can also come directly from a sensitive Terraform variable, such as one
+populated by a secrets manager:
+
+```hcl
+variable "ssh_private_key_pem" {
+  type      = string
+  sensitive = true
+}
+
+provider "adlc" {
+  transport           = "ssh"
+  host                = "dc1.contoso.local"
+  username            = "svc-adlc"
+  ssh_private_key_pem = var.ssh_private_key_pem
+}
+```
+
+The variable must contain the complete PEM-encoded private key, not a file path. Avoid
+committing private-key contents to configuration. The SSH client currently parses keys
+without a passphrase; encrypted private keys are not supported.
+
+Both `password` and `ssh_private_key_pem` may be set. The SSH client offers both
+authentication methods, and the server can accept whichever its policy allows.
+
+### SSH host-key verification
+
+Host-key verification is required unless `insecure = true`. This is independent of
+whether SSH authentication uses a password or a private key. Choose one of these:
 
 | Setting | Purpose |
 | --- | --- |
-| `ssh_known_hosts_path` | A `known_hosts` file to verify against. |
+| `ssh_known_hosts_path` | Path to a `known_hosts` file on the Terraform machine. |
 | `ssh_host_key` | The host public key in `authorized_keys` format. |
 | *(neither)* | Falls back to `~/.ssh/known_hosts` if present. |
 | `insecure = true` | Skips verification entirely (lab only). |

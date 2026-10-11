@@ -2,7 +2,8 @@
 
 A Terraform **Active Directory Lifecycle** provider that manages Active Directory
 objects and policy through **PowerShell 7** on a remote Windows host over **WinRM**
-or **SSH**.
+or **SSH**. Execution is remote-only today; local execution may be supported in the
+future.
 
 > [!WARNING]
 > This is an **experimental** provider.  Use it with care and expect breaking changes.
@@ -64,7 +65,6 @@ Full documentation lives in [docs/](docs/):
 `docs/` is generated — edit the schema `MarkdownDescription` strings, the snippets in
 [examples/](examples/), or the page templates in [templates/](templates/), then run:
 
-
 ```sh
 make docs
 ```
@@ -119,6 +119,14 @@ resource "adlc_access_rule" "delegate_computers" {
 - The `ActiveDirectory` and `GroupPolicy` PowerShell modules on the target host
 - WinRM or OpenSSH reachable from wherever Terraform runs
 
+Most operations use PowerShell 7, selected with `powershell_path` (default `pwsh`).
+GPO operations that load the `GroupPolicy` module use Windows PowerShell 5.1 by
+default (`gpo_powershell_path`, default `powershell.exe`). This avoids issues with
+the PowerShell 7 Windows PowerShell Compatibility layer, which returns deserialized
+objects and can lose nested properties. Set either path to choose a different
+executable; setting `gpo_powershell_path` to `pwsh` opts GPO operations into that
+compatibility layer.
+
 ## Transports
 
 This provider is tested on gitlab runners running in a kubernetes cluster and virtual windows core and linux boxes. Mac and freebsd probably works, but that is untested.
@@ -130,7 +138,7 @@ This provider is tested on gitlab runners running in a kubernetes cluster and vi
 
 Notes that save time:
 
-- Don't spend time trying to get WinRM over http work when terraform runner is outside of domain, it is faster to configure https on 5986 using a self-signed certificate - it is done in minutes. 
+- Don't spend time trying to get WinRM over http work when terraform runner is outside of domain, it is faster to configure https on 5986 using a self-signed certificate - it is done in minutes.
 
 - `kerberos` of course needs the target FQDN, not an IP address, because the SPN is derived from
   the host name. There are other requirements as well.
@@ -167,11 +175,11 @@ git push github v0.0.30       # Triggers GitHub Actions build and release
 ```
 
 The GitHub Actions workflow ([.github/workflows/release.yml](.github/workflows/release.yml)):
+
 - Builds binaries for **linux_amd64**, **darwin_amd64**, **darwin_arm64**, **windows_amd64** ++
 - Creates ZIP archives with proper Terraform naming (`terraform-provider-adlc_0.0.15_linux_amd64.zip`)
 - Generates SHA256 checksums
 - Creates a GitHub release with all artifacts
-
 
 ## License
 
@@ -182,4 +190,3 @@ This provider is licensed under the **Mozilla Public License 2.0** — see [LICE
 It embeds third-party source code under its own license; see
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) (currently Microsoft's MIT-licensed
 `GPRegistryPolicyParser`).
-
