@@ -22,7 +22,8 @@ if (-not [string]::IsNullOrWhiteSpace([string]$payload.sam_account_name)) {
 # if needed, since a Deny on Delete also blocks moves and renames.
 $targetContainerDN = Convert-PathToDN ([string]$payload.path) $domainDN
 $needsMove = ((Get-ParentDN $computer.DistinguishedName) -ne $targetContainerDN)
-$needsRename = ([string]$computer.Name -ne [string]$payload.name)
+# -cne (case-sensitive): a case-only rename must apply; -ne is case-insensitive.
+$needsRename = ([string]$computer.Name -cne [string]$payload.name)
 
 if (($needsMove -or $needsRename) -and [bool]$computer.ProtectedFromAccidentalDeletion) {
     Set-ADObject -Identity $computer.DistinguishedName -ProtectedFromAccidentalDeletion $false @serverParams -ErrorAction Stop

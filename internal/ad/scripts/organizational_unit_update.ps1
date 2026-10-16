@@ -52,7 +52,8 @@ foreach ($segment in $parentSegments) {
 }
 
 $needsMove = ((Get-ParentDN $currentDN) -ne $targetParentDN)
-$needsRename = ([string]$ou.Name -ne $leafName)
+# -cne (case-sensitive): a case-only rename must apply; -ne is case-insensitive.
+$needsRename = ([string]$ou.Name -cne $leafName)
 
 # Accidental deletion protection denies Delete on the object, which also blocks moves. Record
 # the prior state so it can be restored after the move or rename.

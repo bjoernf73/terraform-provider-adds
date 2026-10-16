@@ -192,7 +192,8 @@ function Sync-GroupProperties($Group) {
     $previousManagerDN = [string]$Group.ManagedBy
 
     $setParams = @{}
-    if ([string]$Group.SamAccountName -ne [string]$payload.sam_account_name) {
+    # -cne (case-sensitive): a case-only sAMAccountName change must still apply.
+    if ([string]$Group.SamAccountName -cne [string]$payload.sam_account_name) {
         $setParams['SamAccountName'] = [string]$payload.sam_account_name
     }
     if ([string]$Group.GroupCategory -ne [string]$payload.category) {
@@ -220,7 +221,8 @@ function Sync-GroupProperties($Group) {
                 $clear += $mapping.Attribute
             }
         }
-        elseif ($current -ne $desired) {
+        # -cne (case-sensitive): a case-only edit (e.g. description) must still apply.
+        elseif ($current -cne $desired) {
             $replace[$mapping.Attribute] = $desired
         }
     }

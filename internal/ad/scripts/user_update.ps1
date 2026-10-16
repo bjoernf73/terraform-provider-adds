@@ -7,7 +7,8 @@ Set-ADUser -Identity $user.DistinguishedName @setParams @serverParams -ErrorActi
 
 Set-UserEnabledState $user.DistinguishedName ([bool]$payload.enabled)
 
-if ([string]$user.UserPrincipalName -ne [string]$payload.user_principal_name) {
+# -cne (case-sensitive): a case-only userPrincipalName change must still apply.
+if ([string]$user.UserPrincipalName -cne [string]$payload.user_principal_name) {
     Set-ADUser -Identity $user.DistinguishedName -UserPrincipalName ([string]$payload.user_principal_name) @serverParams -ErrorAction Stop
 }
 
@@ -17,7 +18,8 @@ $user = Get-UserByIdentity ([string]$payload.guid)
 # first if needed, since a Deny on Delete also blocks moves and renames.
 $targetContainerDN = Convert-PathToDN ([string]$payload.path) $domainDN
 $needsMove = ((Get-ParentDN $user.DistinguishedName) -ne $targetContainerDN)
-$needsRename = ([string]$user.Name -ne [string]$payload.name)
+# -cne (case-sensitive): a case-only rename must apply; -ne is case-insensitive.
+$needsRename = ([string]$user.Name -cne [string]$payload.name)
 
 if (($needsMove -or $needsRename) -and [bool]$user.ProtectedFromAccidentalDeletion) {
     Set-ADObject -Identity $user.DistinguishedName -ProtectedFromAccidentalDeletion $false @serverParams -ErrorAction Stop

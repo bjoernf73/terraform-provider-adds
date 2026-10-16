@@ -4,7 +4,8 @@ $group = Get-GroupByIdentity ([string]$payload.guid)
 
 $targetContainerDN = Convert-PathToDN ([string]$payload.path) $domainDN
 $needsMove = ((Get-ParentDN $group.DistinguishedName) -ne $targetContainerDN)
-$needsRename = ([string]$group.Name -ne [string]$payload.name)
+# -cne (case-sensitive): a case-only rename (DFMA -> dfma) must apply; -ne is case-insensitive.
+$needsRename = ([string]$group.Name -cne [string]$payload.name)
 
 # Accidental deletion protection denies Delete on the object, which also blocks moves.
 if (($needsMove -or $needsRename) -and [bool]$group.ProtectedFromAccidentalDeletion) {
