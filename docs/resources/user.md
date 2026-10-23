@@ -4,14 +4,14 @@ page_title: "adlc_user Resource - adlc"
 subcategory: ""
 description: |-
   Manages an Active Directory user account by executing PowerShell on a remote Windows host.
-  The initial password is not managed here. Create the account, then set its password with a password-management resource (or manually) before enabling it.
+  This resource owns the account's enabled state. Enabling an account that has no usable password sets a throwaway strong random password (never stored in state) purely so the account can be enabled; a password-management resource can later set the real password without changing the enabled state.
 ---
 
 # adlc_user (Resource)
 
 Manages an Active Directory user account by executing PowerShell on a remote Windows host.
 
-The initial password is not managed here. Create the account, then set its password with a password-management resource (or manually) before enabling it.
+This resource owns the account's enabled state. Enabling an account that has no usable password sets a throwaway strong random password (never stored in state) purely so the account can be enabled; a password-management resource can later set the real password without changing the enabled state.
 
 ## Example Usage
 
@@ -31,9 +31,10 @@ resource "adlc_user" "jdoe" {
   company      = "Contoso"
   manager      = adlc_user.jsmith.id
 
-  # Left disabled: no password is set here. Set one with a password-management
-  # resource (or manually) before enabling the account.
-  enabled = false
+  # Enabled on its own: with no password set, the resource sets a throwaway random
+  # password (never stored in state) so the account can be enabled. A password-management
+  # resource can set the real password afterwards without changing the enabled state.
+  enabled = true
 }
 
 resource "adlc_user" "jsmith" {
@@ -75,7 +76,7 @@ resource "adlc_user" "jsmith" {
 - `email` (String) Email address (`mail`).
 - `employee_id` (String) Employee ID.
 - `employee_number` (String) Employee number.
-- `enabled` (Boolean) Whether the account is enabled. Enabling an account with no password set fails; set a password with a password-management resource first.
+- `enabled` (Boolean) Whether the account is enabled. This resource enforces the value: enabling an account with no usable password sets a throwaway strong random password (never stored in state) so it can be enabled. A password-management resource may later set the real password.
 - `fax` (String) Fax number.
 - `given_name` (String) Given (first) name.
 - `home_directory` (String) Home directory UNC path.

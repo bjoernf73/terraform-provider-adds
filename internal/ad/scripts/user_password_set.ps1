@@ -4,10 +4,6 @@ $serverParams = Get-ServerParams
 $securePassword = ConvertTo-SecureString -String ([string]$payload.password) -AsPlainText -Force
 Set-ADAccountPassword -Identity $user.distinguishedName -Reset -NewPassword $securePassword @serverParams -ErrorAction Stop
 
-if ([bool]$payload.enable_account) {
-    Enable-ADAccount -Identity $user.distinguishedName @serverParams -ErrorAction Stop
-}
-
 [pscustomobject]@{
     exists        = $true
     user_dn       = $user.distinguishedName

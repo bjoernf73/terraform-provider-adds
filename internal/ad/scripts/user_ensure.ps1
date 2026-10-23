@@ -22,7 +22,8 @@ if ($null -eq $user) {
     }
 
     # New-ADUser creates the account disabled (no AccountPassword is set here). Enabled is
-    # reconciled separately below, deferring to a password resource when no password exists.
+    # reconciled separately below; when enabled = true on a passwordless account, a throwaway
+    # bootstrap password is set so the account can be enabled.
     New-ADUser @newParams @setParams @serverParams -ErrorAction Stop | Out-Null
     $user = Get-UserByIdentity $targetDN
 }

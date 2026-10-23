@@ -8,11 +8,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
-// TestAccUserResource_enabledCreate reproduces the "Provider produced inconsistent result
-// after apply" bug: a user configured with enabled = true is created disabled (New-ADUser
-// rejects an enabled account with no password), so the applied state must still report the
-// planned enabled = true. An adlc_user_password enables the account for real, matching the
-// supported pattern; a second plan-only step guards idempotency.
+// TestAccUserResource_enabledCreate verifies that a user configured with enabled = true is
+// brought into the enabled state by the resource itself: it sets a throwaway bootstrap
+// password on the otherwise passwordless account so Active Directory allows enabling it.
+// A second plan-only step guards idempotency (no perpetual enabled drift).
 func TestAccUserResource_enabledCreate(t *testing.T) {
 	suffix := acctest.RandStringFromCharSet(6, acctest.CharSetAlphaNum)
 	ou := "adlc-acc-user-" + suffix
@@ -55,14 +54,6 @@ resource "adlc_user" "test" {
   user_principal_name = "%[2]s@example.test"
   path                = adlc_organizational_unit.test.path
   enabled             = true
-}
-
-# Enables the account for real; New-ADUser created it disabled because no password existed
-# at create time.
-resource "adlc_user_password" "test" {
-  user           = adlc_user.test.id
-  length         = 24
-  enable_account = true
 }
 `, ou, name)
 }

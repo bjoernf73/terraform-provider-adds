@@ -13,9 +13,10 @@ resource "adlc_user" "jdoe" {
   company      = "Contoso"
   manager      = adlc_user.jsmith.id
 
-  # Left disabled: no password is set here. Set one with a password-management
-  # resource (or manually) before enabling the account.
-  enabled = false
+  # Enabled on its own: with no password set, the resource sets a throwaway random
+  # password (never stored in state) so the account can be enabled. A password-management
+  # resource can set the real password afterwards without changing the enabled state.
+  enabled = true
 }
 
 resource "adlc_user" "jsmith" {

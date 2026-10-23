@@ -394,9 +394,6 @@ output "user_manager_dn" {
 resource "adlc_user_password" "smoke" {
   user   = adlc_user.smoke.id
   length = 20
-  # The user resource above already sets enabled = false and has nothing else needing
-  # it; leave the account disabled rather than enabling a throwaway CI account.
-  enable_account = false
 }
 
 output "user_password_id" {

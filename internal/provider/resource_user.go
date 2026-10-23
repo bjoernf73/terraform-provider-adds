@@ -95,8 +95,10 @@ func (r *userResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Manages an Active Directory user account by executing PowerShell on a remote Windows host.\n\n" +
-			"The initial password is not managed here. Create the account, then set its password with a " +
-			"password-management resource (or manually) before enabling it.",
+			"This resource owns the account's `enabled` state. Enabling an account that has no usable " +
+			"password sets a throwaway strong random password (never stored in state) purely so the account " +
+			"can be enabled; a password-management resource can later set the real password without changing " +
+			"the enabled state.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:            true,
@@ -167,8 +169,9 @@ func (r *userResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			},
 			"enabled": schema.BoolAttribute{
 				Optional: true, Computed: true, Default: boolDefaultFalse,
-				MarkdownDescription: "Whether the account is enabled. Enabling an account with no password set fails; " +
-					"set a password with a password-management resource first.",
+				MarkdownDescription: "Whether the account is enabled. This resource enforces the value: enabling an " +
+					"account with no usable password sets a throwaway strong random password (never stored in state) " +
+					"so it can be enabled. A password-management resource may later set the real password.",
 			},
 			"password_never_expires": schema.BoolAttribute{
 				Optional: true, Computed: true, Default: boolDefaultFalse,
@@ -231,11 +234,6 @@ func (r *userResource) Create(ctx context.Context, req resource.CreateRequest, r
 	}
 
 	state := userState(plan, user)
-	// New-ADUser always creates the account disabled, because no password exists yet
-	// (see user_ensure.ps1). Honor the planned `enabled` value so the applied state matches
-	// the plan — Terraform rejects a known plan value that changes during apply. A password
-	// resource (or a later apply, once a password exists) reconciles the account for real.
-	state.Enabled = plan.Enabled
 	resp.Diagnostics.Append(resp.State.Set(ctx, state)...)
 }
 
@@ -277,10 +275,6 @@ func (r *userResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	}
 
 	updated := userState(plan, user)
-	// Enabling an account with no usable password is deferred to a password resource (see
-	// user_common.ps1 Set-UserEnabledState), so the account may still be disabled here. Honor
-	// the planned value to keep the applied state consistent with the plan.
-	updated.Enabled = plan.Enabled
 	resp.Diagnostics.Append(resp.State.Set(ctx, updated)...)
 }
 

@@ -7,8 +7,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapplanmodifier"
@@ -44,7 +42,6 @@ type userPasswordResourceModel struct {
 	PasswordWOVersion types.String `tfsdk:"password_wo_version"`
 	PasswordLastSet   types.String `tfsdk:"password_last_set"`
 	Length            types.Int64  `tfsdk:"length"`
-	EnableAccount     types.Bool   `tfsdk:"enable_account"`
 	Keepers           types.Map    `tfsdk:"keepers"`
 }
 
@@ -121,15 +118,6 @@ func (r *userPasswordResource) Schema(_ context.Context, _ resource.SchemaReques
 				MarkdownDescription: "Length of the generated password. Ignored when `password` is set.",
 				PlanModifiers: []planmodifier.Int64{
 					int64planmodifier.RequiresReplace(),
-				},
-			},
-			"enable_account": schema.BoolAttribute{
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(true),
-				MarkdownDescription: "Enable the account after setting the password.",
-				PlanModifiers: []planmodifier.Bool{
-					boolplanmodifier.RequiresReplace(),
 				},
 			},
 			"keepers": schema.MapAttribute{
@@ -228,7 +216,7 @@ func (r *userPasswordResource) Create(ctx context.Context, req resource.CreateRe
 		value = generated
 	}
 
-	target, err := ad.SetUserPassword(ctx, r.client, plan.User.ValueString(), value, plan.EnableAccount.ValueBool())
+	target, err := ad.SetUserPassword(ctx, r.client, plan.User.ValueString(), value)
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to set user password", err.Error())
 		return

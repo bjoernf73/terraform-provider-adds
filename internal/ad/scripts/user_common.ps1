@@ -160,10 +160,45 @@ function Get-UserSetParams {
     }
 }
 
-# Reconciles the account's Enabled state. Enabling an account that has no usable password yet
-# fails the domain password policy; in that case leave it disabled and defer to a password
-# resource (adlc_user_password) or a later apply, exactly as creation force-disables. Any
-# other failure re-throws.
+# Generates a strong random password used only to bring an account into the enabled state
+# when it has no usable password yet. It is never returned to Terraform or written to state;
+# a password resource (adlc_user_password) may replace it afterwards. One character from each
+# class is guaranteed so AD's default complexity policy is met, then the result is shuffled.
+function New-EnableBootstrapPassword([int]$Length = 25) {
+    $lower = 'abcdefghijklmnopqrstuvwxyz'
+    $upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    $digits = '0123456789'
+    $symbols = '!@#$%^&*()-_=+[]{}<>?'
+    $all = $lower + $upper + $digits + $symbols
+
+    $bytes = [byte[]]::new($Length)
+    [System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+
+    $chars = [char[]]::new($Length)
+    $chars[0] = $lower[$bytes[0] % $lower.Length]
+    $chars[1] = $upper[$bytes[1] % $upper.Length]
+    $chars[2] = $digits[$bytes[2] % $digits.Length]
+    $chars[3] = $symbols[$bytes[3] % $symbols.Length]
+    for ($i = 4; $i -lt $Length; $i++) {
+        $chars[$i] = $all[$bytes[$i] % $all.Length]
+    }
+
+    $order = [byte[]]::new($Length)
+    [System.Security.Cryptography.RandomNumberGenerator]::Fill($order)
+    for ($i = $Length - 1; $i -gt 0; $i--) {
+        $j = $order[$i] % ($i + 1)
+        $tmp = $chars[$i]; $chars[$i] = $chars[$j]; $chars[$j] = $tmp
+    }
+
+    return ConvertTo-SecureString -String (-join $chars) -AsPlainText -Force
+}
+
+# Reconciles the account's Enabled state. adlc_user fully owns the enabled flag and must be
+# able to bring the account into the desired state on its own. Enabling an account that has
+# no usable password fails the domain password policy; in that case set a throwaway strong
+# random password (never surfaced to Terraform or stored in state) purely so the account can
+# be enabled. A password resource (adlc_user_password) may replace that password later, but
+# must not change the enabled state. Any other failure re-throws.
 function Set-UserEnabledState([string]$DistinguishedName, [bool]$Desired) {
     $serverParams = Get-ServerParams
     if (-not $Desired) {
@@ -178,6 +213,9 @@ function Set-UserEnabledState([string]$DistinguishedName, [bool]$Desired) {
         if ($_.Exception.Message -notmatch 'password does not meet') {
             throw
         }
+
+        Set-ADAccountPassword -Identity $DistinguishedName -Reset -NewPassword (New-EnableBootstrapPassword) @serverParams -ErrorAction Stop
+        Set-ADUser -Identity $DistinguishedName -Enabled $true @serverParams -ErrorAction Stop
     }
 }
 

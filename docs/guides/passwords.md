@@ -116,18 +116,17 @@ persisted.
 
 ## Enabling the account
 
-`adlc_user.enabled` and `adlc_user_password.enable_account` overlap on purpose, but
-only one should be `true` in a given configuration:
+`adlc_user.enabled` fully owns the account's enabled state; `adlc_user_password` never
+touches it. This keeps the two concerns independent:
 
-- If `adlc_user_password` manages the password, leave `adlc_user.enabled = false` and
-  let `enable_account` (default `true`) enable the account once the password is set.
-- If a user's password is managed entirely outside Terraform, `adlc_user.enabled` is the
-  right place to control it and `adlc_user_password` should not be used at all.
-
-Setting `adlc_user.enabled = true` with no `adlc_user_password` resource fails at apply
-time, because `New-ADUser`/`Set-ADUser -Enabled $true` refuses an account with no
-password — which is Active Directory correctly rejecting an account that could never log
-on, not a bug in this provider.
+- Set `adlc_user.enabled = true` to enable the account. If it has no usable password yet,
+  the `adlc_user` resource sets a throwaway strong random password (never stored in state)
+  purely so Active Directory allows it to be enabled.
+- Add an `adlc_user_password` resource to set the real password. It replaces whatever
+  password is in place but leaves the enabled state alone, so an account that is already
+  enabled stays enabled and its chosen password is not overwritten on the next apply.
+- Set `adlc_user.enabled = false` (the default) to keep the account disabled, even when an
+  `adlc_user_password` resource manages its password.
 
 ## Rotation
 

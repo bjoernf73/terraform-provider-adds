@@ -27,9 +27,10 @@ resource "adlc_user" "jdoe" {
   given_name          = "John"
   surname             = "Doe"
 
-  # Left unmanaged here: adlc_user_password enables the account once the password
-  # is set, avoiding "New-ADUser -Enabled $true" failing because no password exists yet.
-  enabled = false
+  # adlc_user owns the enabled state: with no password yet, it sets a throwaway random
+  # one (never stored in state) so the account can be enabled. adlc_user_password below
+  # replaces the password without changing the enabled state.
+  enabled = true
 }
 
 # Generates a random password and sets it on the account, then pushes it to Vault.
@@ -61,7 +62,7 @@ resource "adlc_user" "jsmith" {
   sam_account_name    = "jsmith"
   user_principal_name = "jsmith@contoso.local"
   path                = "Contoso/Users"
-  enabled             = false
+  enabled             = true
 }
 
 resource "adlc_user_password" "jsmith" {
@@ -70,8 +71,8 @@ resource "adlc_user_password" "jsmith" {
   password_wo_version = 1
 }
 
-# Forces the password to be regenerated (and the account re-enabled) whenever
-# var.rotation_marker changes, without touching any other attribute.
+# Forces the password to be regenerated whenever var.rotation_marker changes, without
+# touching any other attribute. The account's enabled state is left to adlc_user.
 resource "adlc_user_password" "rotating" {
   user = adlc_user.jdoe.id
 
@@ -92,7 +93,6 @@ resource "adlc_user_password" "rotating" {
 
 > **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
 
-- `enable_account` (Boolean) Enable the account after setting the password.
 - `keepers` (Map of String) Arbitrary key/value pairs. Changing any value replaces the resource, resetting the password. Use this to trigger deliberate password rotation.
 - `length` (Number) Length of the generated password. Ignored when `password` is set.
 - `password` (String, Sensitive) Password to set. Omit (and omit `password_wo`) to generate a random one of `length` characters that satisfies AD's default complexity policy. Stored in state; mutually exclusive with `password_wo`.
