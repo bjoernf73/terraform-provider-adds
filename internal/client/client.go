@@ -106,39 +106,17 @@ func (c *Client) runPowerShellOnce(ctx context.Context, script string) (transpor
 	}
 	remotePath := powershell.RemoteScriptPath(token)
 
-	// Stage the script as a plain .ps1 file and run it with -File, rather than piping a
-	// compressed, base64-encoded body into an in-memory Invoke-Expression. That older bootstrap
-	// is behaviourally identical to a PowerShell stager and is blocked by behavioural antivirus
-	// (Defender flags it as Behavior:Win32/PShellCobStager), which surfaced as empty output.
-	writeCommand, err := powershell.BuildWriteCommand(powerShellPath, remotePath)
+	// Stage, run and remove the script in a single remote process. Splitting these into three
+	// separate shells tripled the per-operation connection and server-process count (sshd.exe,
+	// winrshost.exe, conhost.exe) and the latency; one shell per operation keeps it bounded. The
+	// body is still a plain .ps1 run from disk - not an in-memory decompress-and-Invoke-Expression,
+	// which behavioural antivirus blocks as a stager (Defender Behavior:Win32/PShellCobStager).
+	runCommand, err := powershell.BuildRunCommand(powerShellPath, remotePath)
 	if err != nil {
 		return transport.Result{}, err
 	}
 
-	writeResult, err := c.runner.Run(ctx, writeCommand, script)
-	writeResult.Stderr = powershell.DecodeCLIXML(writeResult.Stderr)
-	if err != nil {
-		return writeResult, fmt.Errorf("uploading remote script: %w", err)
-	}
-	if writeResult.ExitCode != 0 {
-		return writeResult, fmt.Errorf("uploading remote script exited with code %d: %s", writeResult.ExitCode, resultDetail(writeResult))
-	}
-
-	// The script is on disk now, so always attempt to remove it afterwards. Cleanup is best
-	// effort and must not mask the real result; it reuses the operation context so a cancelled
-	// operation skips it rather than blocking.
-	defer func() {
-		if deleteCommand, derr := powershell.BuildDeleteCommand(powerShellPath, remotePath); derr == nil {
-			_, _ = c.runner.Run(ctx, deleteCommand, "")
-		}
-	}()
-
-	runCommand, err := powershell.BuildFileCommand(powerShellPath, remotePath)
-	if err != nil {
-		return transport.Result{}, err
-	}
-
-	result, err := c.runner.Run(ctx, runCommand, "")
+	result, err := c.runner.Run(ctx, runCommand, script)
 	result.Stderr = powershell.DecodeCLIXML(result.Stderr)
 
 	if err != nil {

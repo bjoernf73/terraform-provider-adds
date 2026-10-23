@@ -18,10 +18,7 @@ type executionFailureRunner struct {
 
 func (runner *executionFailureRunner) Run(ctx context.Context, command, stdin string) (transport.Result, error) {
 	runner.calls++
-	if strings.Contains(command, " -File ") {
-		return transport.Result{Stderr: runner.stderr}, runner.err
-	}
-	return transport.Result{}, nil
+	return transport.Result{Stderr: runner.stderr}, runner.err
 }
 
 func TestRunPowerShellExecutionFailure(t *testing.T) {
@@ -43,8 +40,8 @@ func TestRunPowerShellExecutionFailure(t *testing.T) {
 			if stderr != "" && !strings.Contains(err.Error(), "stderr: "+stderr) {
 				t.Fatalf("expected captured stderr in error, got %v", err)
 			}
-			if runner.calls != 3 {
-				t.Fatalf("expected staging, execution, and cleanup, got %d calls", runner.calls)
+			if runner.calls != 1 {
+				t.Fatalf("expected a single stage-run-delete call, got %d calls", runner.calls)
 			}
 		})
 	}

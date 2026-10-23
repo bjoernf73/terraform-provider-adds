@@ -16,10 +16,10 @@ import (
 // It exists and is writable for an administrative account on every Windows host.
 const remoteTempDir = `C:\Windows\Temp`
 
-// EmptyStdinExitCode is the exit code the write bootstrap uses when no script arrives on stdin
+// EmptyStdinExitCode is the exit code the run bootstrap uses when no script arrives on stdin
 // (a truncated or undelivered transport Send). It lets the transport distinguish an empty
 // payload from a genuine failure and retry it. EmptyStdinMarker is written to stderr alongside
-// it. Both must stay in sync with the literals in writeBootstrap.
+// it. Both must stay in sync with the literals in runBootstrap.
 const (
 	EmptyStdinExitCode = 97
 	EmptyStdinMarker   = "ADDS_EMPTY_STDIN"
@@ -41,60 +41,37 @@ func RemoteScriptPath(token string) string {
 	return remoteTempDir + `\adds-` + token + `.ps1`
 }
 
-// BuildWriteCommand returns the command line that stages a script on the target host. The
-// bootstrap reads the script as plain text from stdin and writes it verbatim to remotePath; it
-// performs no decoding, decompression or execution, so it does not resemble the in-memory
-// decompress-and-Invoke-Expression pattern that behavioural antivirus blocks as a stager.
-// Keeping the script body on stdin still avoids the 8191 character cmd.exe command-line limit.
-func BuildWriteCommand(powerShellPath, remotePath string) (string, error) {
+// BuildRunCommand returns the single command line that stages, runs and removes a script in one
+// remote process. The bootstrap reads the script as plain text from stdin, writes it verbatim to
+// remotePath, runs it from disk with the call operator, and deletes it in a finally block.
+// Collapsing the former write/run/delete trio into one process cuts the per-operation connection
+// and server-process count (sshd.exe, winrshost.exe, conhost.exe) and latency roughly threefold.
+// It stays clear of the stager primitives behavioural antivirus blocks: plain-text stdin, a real
+// .ps1 run from disk by path, and no decoding, decompression or Invoke-Expression. Keeping the
+// script body on stdin still avoids the 8191 character cmd.exe command-line limit.
+func BuildRunCommand(powerShellPath, remotePath string) (string, error) {
 	if strings.TrimSpace(powerShellPath) == "" {
 		return "", fmt.Errorf("powershell_path must not be empty")
 	}
 
-	return fmt.Sprintf(`"%s" -NoLogo -NoProfile -NonInteractive -EncodedCommand %s`, powerShellPath, encodeUTF16LEBase64(writeBootstrap(remotePath))), nil
+	return fmt.Sprintf(`"%s" -NoLogo -NoProfile -NonInteractive -EncodedCommand %s`, powerShellPath, encodeUTF16LEBase64(runBootstrap(remotePath))), nil
 }
 
-// BuildFileCommand returns the command line that runs a staged script with -File. Executing a
-// named script file is indistinguishable from an administrator running a script, which keeps it
-// clear of the stager heuristics the old in-memory stdin bootstrap tripped. The path is left
-// unquoted so the line carries only the two quotes around the executable: cmd.exe (the WinRM/SSH
-// shell) strips the outer quote pair when a line has four or more quotes, which would mangle the
-// executable. RemoteScriptPath never contains spaces, so an unquoted path is a single argument.
-func BuildFileCommand(powerShellPath, remotePath string) (string, error) {
-	if strings.TrimSpace(powerShellPath) == "" {
-		return "", fmt.Errorf("powershell_path must not be empty")
-	}
-
-	return fmt.Sprintf(`"%s" -NoLogo -NoProfile -NonInteractive -File %s`, powerShellPath, remotePath), nil
-}
-
-// BuildDeleteCommand returns the command line that removes a staged script. It is encoded like
-// the write command so the line carries only the two quotes around the executable (see
-// BuildFileCommand). Cleanup is best effort: a leftover file in the machine temp directory is
-// harmless.
-func BuildDeleteCommand(powerShellPath, remotePath string) (string, error) {
-	if strings.TrimSpace(powerShellPath) == "" {
-		return "", fmt.Errorf("powershell_path must not be empty")
-	}
-
-	return fmt.Sprintf(`"%s" -NoLogo -NoProfile -NonInteractive -EncodedCommand %s`, powerShellPath, encodeUTF16LEBase64(deleteBootstrap(remotePath))), nil
-}
-
-// deleteBootstrap removes the staged script. It performs a single Remove-Item and nothing else.
-func deleteBootstrap(remotePath string) string {
-	return `Remove-Item -LiteralPath '` + remotePath + `' -Force -ErrorAction SilentlyContinue`
-}
-
-// writeBootstrap is the small, fixed script the write command runs. It reads the script text
-// from stdin and writes it to remotePath as UTF-8 with a BOM, which both Windows PowerShell 5.1
-// and PowerShell 7 read back correctly under -File. An empty stdin (a truncated or undelivered
-// transport Send) is reported with the sentinel exit code and marker so the transport retries it.
-func writeBootstrap(remotePath string) string {
+// runBootstrap is the fixed script the run command executes. It reads the operation script from
+// stdin, writes it to remotePath as UTF-8 with a BOM (read back correctly by both Windows
+// PowerShell 5.1 and PowerShell 7), runs it from disk with the call operator, and always removes
+// it afterwards in a finally block. An empty stdin (a truncated or undelivered transport Send) is
+// reported with the sentinel exit code and marker so the transport retries it. A terminating
+// error from the script propagates out of the try/finally so the process exits non-zero with the
+// error on stderr, exactly as running it with -File did.
+func runBootstrap(remotePath string) string {
 	return `$ErrorActionPreference='Stop';` +
 		`if($null -ne $PSStyle){$PSStyle.OutputRendering='PlainText'};` +
 		`$script=[Console]::In.ReadToEnd();` +
 		`if([string]::IsNullOrWhiteSpace($script)){[Console]::Error.Write('` + EmptyStdinMarker + `');exit ` + strconv.Itoa(EmptyStdinExitCode) + `};` +
-		`[System.IO.File]::WriteAllText('` + remotePath + `',$script,(New-Object System.Text.UTF8Encoding($true)))`
+		`$p='` + remotePath + `';` +
+		`[System.IO.File]::WriteAllText($p,$script,(New-Object System.Text.UTF8Encoding($true)));` +
+		`try{& $p}finally{Remove-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue}`
 }
 
 func encodeUTF16LEBase64(input string) string {

@@ -42,7 +42,7 @@ module's build. `go build ./...` at the repo root must never need them.
 main.go                          providerserver.Serve -> internal/provider
 internal/config                  Config struct: transport, creds, timeouts, powershell_path, domain_controller
 internal/transport               Runner interface { Run(ctx, command, stdin) (Result, error) }; winrm.go, ssh.go
-internal/powershell              BuildWriteCommand/BuildFileCommand/BuildDeleteCommand (stage+run+delete a .ps1), DecodeCLIXML
+internal/powershell              BuildRunCommand (one process stages+runs+deletes a .ps1), DecodeCLIXML
 internal/client                  Client: RunPowerShell, RunPowerShellJSON (decode stdout into target)
 internal/ad                      One file per AD object type + scripts/*.ps1 embedded via go:embed
 internal/provider                Provider definition + one resource_*.go per resource
@@ -53,15 +53,17 @@ Data flow for any operation:
 `resource_x.go` → `internal/ad` builds a script → `client.RunPowerShellJSON` →
 `transport.Runner` (WinRM/SSH) stages the script on the host and runs it → JSON on stdout → struct.
 
-Each operation runs three remote commands: a small `-EncodedCommand` write bootstrap reads the
-script as **plain text** from **stdin** and writes it to `C:\Windows\Temp\adds-<token>.ps1`; the
-script is then run with `pwsh -File <path>`; the file is deleted afterwards (best effort). The body
-travels on stdin, not the command line, because WinRM shells run under `cmd.exe` whose 8191
-character limit the scripts would otherwise exceed — **never put the script on the command line**.
-The script is staged and run as a file (not decompressed and `Invoke-Expression`-ed in memory)
-because the old in-memory bootstrap is behaviourally identical to a PowerShell stager and is blocked
-by behavioural antivirus (Defender `Behavior:Win32/PShellCobStager`). Keep the write bootstrap free
-of `FromBase64String`/`GZipStream`/`Invoke-Expression`; embedded scripts must stay ASCII so the
+Each operation runs a single `-EncodedCommand` run bootstrap: it reads the script as **plain text**
+from **stdin**, writes it to `C:\Windows\Temp\adds-<token>.ps1`, runs it from disk with the call
+operator (`& $p`), and deletes it in a `finally` block — all in one remote process. Collapsing the
+former write/run/delete trio into one process cuts the per-operation connection and server-process
+count (`sshd.exe`, `winrshost.exe`, `conhost.exe`) and latency roughly threefold. The body travels
+on stdin, not the command line, because WinRM shells run under `cmd.exe` whose 8191 character limit
+the scripts would otherwise exceed — **never put the script on the command line**. The script is
+staged and run as a file (not decompressed and `Invoke-Expression`-ed in memory) because the old
+in-memory bootstrap is behaviourally identical to a PowerShell stager and is blocked by behavioural
+antivirus (Defender `Behavior:Win32/PShellCobStager`). Keep the run bootstrap free of
+`FromBase64String`/`GZipStream`/`Invoke-Expression`; embedded scripts must stay ASCII so the
 plaintext stdin transfer is encoding-safe.
    equivalent resource in `ref/terraform-provider-ad/ad/` + its page under
    `ref/terraform-provider-ad/docs/` — use them to decide the attribute set, defaults, read/update

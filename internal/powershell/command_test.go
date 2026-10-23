@@ -27,53 +27,52 @@ func decodeEncodedCommand(t *testing.T, command string) string {
 	return string(utf16.Decode(codeUnits))
 }
 
-func TestBuildWriteCommandIsSmall(t *testing.T) {
+func TestBuildRunCommandIsSmall(t *testing.T) {
 	token, err := NewScriptToken()
 	if err != nil {
 		t.Fatalf("NewScriptToken: %v", err)
 	}
 
-	command, err := BuildWriteCommand("pwsh", RemoteScriptPath(token))
+	command, err := BuildRunCommand("pwsh", RemoteScriptPath(token))
 	if err != nil {
-		t.Fatalf("BuildWriteCommand: %v", err)
+		t.Fatalf("BuildRunCommand: %v", err)
 	}
 
 	// cmd.exe caps the command line at 8191 characters; the script body travels on stdin.
 	if len(command) > 2000 {
-		t.Fatalf("write command line grew to %d characters", len(command))
+		t.Fatalf("run command line grew to %d characters", len(command))
 	}
 }
 
-func TestBuildFileCommandUsesFile(t *testing.T) {
+func TestBuildRunCommandRunsStagedFile(t *testing.T) {
 	token, err := NewScriptToken()
 	if err != nil {
 		t.Fatalf("NewScriptToken: %v", err)
 	}
 
-	command, err := BuildFileCommand("pwsh", RemoteScriptPath(token))
+	path := RemoteScriptPath(token)
+	command, err := BuildRunCommand("pwsh", path)
 	if err != nil {
-		t.Fatalf("BuildFileCommand: %v", err)
+		t.Fatalf("BuildRunCommand: %v", err)
 	}
 
-	if !strings.Contains(command, "-File") {
-		t.Fatalf("file command does not use -File: %s", command)
+	bootstrap := decodeEncodedCommand(t, command)
+	if !strings.Contains(bootstrap, "& $p") {
+		t.Fatalf("run bootstrap does not invoke the staged file: %s", bootstrap)
+	}
+	if !strings.Contains(bootstrap, path) {
+		t.Fatalf("run bootstrap does not reference the staged path: %s", bootstrap)
 	}
 	if len(command) > 2000 {
-		t.Fatalf("file command line grew to %d characters", len(command))
+		t.Fatalf("run command line grew to %d characters", len(command))
 	}
 }
 
-func TestBuildCommandsRejectEmptyPath(t *testing.T) {
+func TestBuildRunCommandRejectsEmptyPath(t *testing.T) {
 	path := RemoteScriptPath("deadbeef")
 
-	if _, err := BuildWriteCommand("  ", path); err == nil {
-		t.Fatal("BuildWriteCommand: expected an error for an empty powershell path")
-	}
-	if _, err := BuildFileCommand("  ", path); err == nil {
-		t.Fatal("BuildFileCommand: expected an error for an empty powershell path")
-	}
-	if _, err := BuildDeleteCommand("  ", path); err == nil {
-		t.Fatal("BuildDeleteCommand: expected an error for an empty powershell path")
+	if _, err := BuildRunCommand("  ", path); err == nil {
+		t.Fatal("BuildRunCommand: expected an error for an empty powershell path")
 	}
 }
 
@@ -99,45 +98,51 @@ func TestNewScriptTokenIsUnique(t *testing.T) {
 	}
 }
 
-// TestWriteBootstrapStagesScript confirms the write command reads stdin and writes it to the
-// staged path without decoding, decompressing or executing it - none of the stager primitives
+// TestRunBootstrapStagesRunsAndRemovesScript confirms the single run command reads stdin, writes
+// it to the staged path, runs it from disk and removes it - without any of the stager primitives
 // that behavioural antivirus blocks.
-func TestWriteBootstrapStagesScript(t *testing.T) {
+func TestRunBootstrapStagesRunsAndRemovesScript(t *testing.T) {
 	path := RemoteScriptPath("abc123")
-	command, err := BuildWriteCommand("pwsh", path)
+	command, err := BuildRunCommand("pwsh", path)
 	if err != nil {
-		t.Fatalf("BuildWriteCommand: %v", err)
+		t.Fatalf("BuildRunCommand: %v", err)
 	}
 
 	bootstrap := decodeEncodedCommand(t, command)
 
 	if !strings.Contains(bootstrap, "[Console]::In.ReadToEnd()") {
-		t.Fatalf("write bootstrap does not read stdin: %s", bootstrap)
+		t.Fatalf("run bootstrap does not read stdin: %s", bootstrap)
 	}
 	if !strings.Contains(bootstrap, "WriteAllText") || !strings.Contains(bootstrap, path) {
-		t.Fatalf("write bootstrap does not write the staged file: %s", bootstrap)
+		t.Fatalf("run bootstrap does not write the staged file: %s", bootstrap)
+	}
+	if !strings.Contains(bootstrap, "& $p") {
+		t.Fatalf("run bootstrap does not run the staged file: %s", bootstrap)
+	}
+	if !strings.Contains(bootstrap, "Remove-Item") || !strings.Contains(bootstrap, "finally") {
+		t.Fatalf("run bootstrap does not remove the staged file in a finally block: %s", bootstrap)
 	}
 	for _, forbidden := range []string{"Invoke-Expression", "FromBase64String", "GZipStream"} {
 		if strings.Contains(bootstrap, forbidden) {
-			t.Fatalf("write bootstrap still contains stager primitive %q: %s", forbidden, bootstrap)
+			t.Fatalf("run bootstrap still contains stager primitive %q: %s", forbidden, bootstrap)
 		}
 	}
 }
 
-// TestWriteBootstrapEmptyStdinGuard checks the write bootstrap short-circuits with the exported
+// TestRunBootstrapEmptyStdinGuard checks the run bootstrap short-circuits with the exported
 // sentinel when stdin is empty, so the transport can detect and retry a truncated payload.
-func TestWriteBootstrapEmptyStdinGuard(t *testing.T) {
-	command, err := BuildWriteCommand("pwsh", RemoteScriptPath("abc123"))
+func TestRunBootstrapEmptyStdinGuard(t *testing.T) {
+	command, err := BuildRunCommand("pwsh", RemoteScriptPath("abc123"))
 	if err != nil {
-		t.Fatalf("BuildWriteCommand: %v", err)
+		t.Fatalf("BuildRunCommand: %v", err)
 	}
 	bootstrap := decodeEncodedCommand(t, command)
 
 	if !strings.Contains(bootstrap, EmptyStdinMarker) {
-		t.Fatalf("write bootstrap does not emit EmptyStdinMarker %q", EmptyStdinMarker)
+		t.Fatalf("run bootstrap does not emit EmptyStdinMarker %q", EmptyStdinMarker)
 	}
 	if !strings.Contains(bootstrap, "exit "+strconv.Itoa(EmptyStdinExitCode)) {
-		t.Fatalf("write bootstrap does not exit with EmptyStdinExitCode %d", EmptyStdinExitCode)
+		t.Fatalf("run bootstrap does not exit with EmptyStdinExitCode %d", EmptyStdinExitCode)
 	}
 }
 
