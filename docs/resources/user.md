@@ -11,7 +11,7 @@ description: |-
 
 Manages an Active Directory user account by executing PowerShell on a remote Windows host.
 
-This resource owns the account's enabled state. Enabling an account that has no usable password sets a throwaway strong random password (never stored in state) purely so the account can be enabled; a password-management resource can later set the real password without changing the enabled state.
+This resource owns the account's `enabled` state. Enabling an account that has no usable password sets a throwaway strong random password (never stored in state) purely so the account can be enabled; a password-management resource can later set the real password without changing the enabled state.
 
 ## Example Usage
 
