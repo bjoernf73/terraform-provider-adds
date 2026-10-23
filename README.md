@@ -190,3 +190,4 @@ This provider is licensed under the **Mozilla Public License 2.0** — see [LICE
 It embeds third-party source code under its own license; see
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) (currently Microsoft's MIT-licensed
 `GPRegistryPolicyParser`).
+
