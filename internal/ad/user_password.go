@@ -25,10 +25,11 @@ type UserPasswordTarget struct {
 	PwdLastSet string `json:"pwd_last_set"`
 }
 
-func SetUserPassword(ctx context.Context, c *client.Client, user string, password string) (*UserPasswordTarget, error) {
+func SetUserPassword(ctx context.Context, c *client.Client, user string, password string, changePasswordAtNextLogon bool) (*UserPasswordTarget, error) {
 	script, err := buildScript(c, map[string]any{
-		"user":     strings.TrimSpace(user),
-		"password": password,
+		"user":                          strings.TrimSpace(user),
+		"password":                      password,
+		"change_password_at_next_logon": changePasswordAtNextLogon,
 	}, commonScript, userPasswordSet)
 	if err != nil {
 		return nil, err

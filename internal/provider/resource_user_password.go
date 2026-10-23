@@ -7,6 +7,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapplanmodifier"
@@ -34,15 +36,16 @@ type userPasswordResource struct {
 }
 
 type userPasswordResourceModel struct {
-	ID                types.String `tfsdk:"id"`
-	User              types.String `tfsdk:"user"`
-	UserDN            types.String `tfsdk:"user_dn"`
-	Password          types.String `tfsdk:"password"`
-	PasswordWO        types.String `tfsdk:"password_wo"`
-	PasswordWOVersion types.String `tfsdk:"password_wo_version"`
-	PasswordLastSet   types.String `tfsdk:"password_last_set"`
-	Length            types.Int64  `tfsdk:"length"`
-	Keepers           types.Map    `tfsdk:"keepers"`
+	ID                        types.String `tfsdk:"id"`
+	User                      types.String `tfsdk:"user"`
+	UserDN                    types.String `tfsdk:"user_dn"`
+	Password                  types.String `tfsdk:"password"`
+	PasswordWO                types.String `tfsdk:"password_wo"`
+	PasswordWOVersion         types.String `tfsdk:"password_wo_version"`
+	PasswordLastSet           types.String `tfsdk:"password_last_set"`
+	Length                    types.Int64  `tfsdk:"length"`
+	ChangePasswordAtNextLogon types.Bool   `tfsdk:"change_password_at_next_logon"`
+	Keepers                   types.Map    `tfsdk:"keepers"`
 }
 
 func (r *userPasswordResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -118,6 +121,19 @@ func (r *userPasswordResource) Schema(_ context.Context, _ resource.SchemaReques
 				MarkdownDescription: "Length of the generated password. Ignored when `password` is set.",
 				PlanModifiers: []planmodifier.Int64{
 					int64planmodifier.RequiresReplace(),
+				},
+			},
+			"change_password_at_next_logon": schema.BoolAttribute{
+				Optional: true,
+				Computed: true,
+				Default:  booldefault.StaticBool(false),
+				MarkdownDescription: "Force the user to change the password at their next logon (sets `pwdLastSet` to 0). " +
+					"Fire-and-forget: the flag is set when the password is set and is never read back or reconciled, " +
+					"because Active Directory clears it once the user changes the password. Leave `false` (the default) " +
+					"for automation accounts that keep using the stored password. Cannot be combined with " +
+					"`adlc_user.password_never_expires` or `cannot_change_password` on the same account.",
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.RequiresReplace(),
 				},
 			},
 			"keepers": schema.MapAttribute{
@@ -216,7 +232,7 @@ func (r *userPasswordResource) Create(ctx context.Context, req resource.CreateRe
 		value = generated
 	}
 
-	target, err := ad.SetUserPassword(ctx, r.client, plan.User.ValueString(), value)
+	target, err := ad.SetUserPassword(ctx, r.client, plan.User.ValueString(), value, plan.ChangePasswordAtNextLogon.ValueBool())
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to set user password", err.Error())
 		return

@@ -59,3 +59,12 @@ resource "adlc_user_password" "rotating" {
     rotation = var.rotation_marker
   }
 }
+
+# Personal account: generate a password, communicate it (here via Vault), and force the
+# user to choose their own password at first logon. change_password_at_next_logon is
+# fire-and-forget — Active Directory clears it once the user changes the password, and
+# this resource never reads it back, so it never drifts.
+resource "adlc_user_password" "personal" {
+  user                          = adlc_user.jdoe.id
+  change_password_at_next_logon = true
+}

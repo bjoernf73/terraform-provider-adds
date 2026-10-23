@@ -116,17 +116,23 @@ unit:
     - |
       $ErrorActionPreference = 'Stop'
       New-Item -ItemType Directory -Force -Path $env:TF_STATE_DIR | Out-Null
-      $mirror = "$env:CI_PROJECT_DIR\.provider-mirror\registry.terraform.io\$($env:PROVIDER_NAMESPACE)\$($env:PROVIDER_TYPE)\$($env:PROVIDER_VERSION)\windows_amd64"
-      New-Item -ItemType Directory -Force -Path $mirror | Out-Null
-      $exe = "terraform-provider-adlc_v$($env:PROVIDER_VERSION).exe"
-      Copy-Item "dist\$exe" (Join-Path $mirror $exe)
-      $ciDir = $env:CI_PROJECT_DIR -replace '\\','/'
+      # Stage the provider mirror OUTSIDE the Git working tree. This persistent shell runner
+      # runs `git clean -ffdx` between runs; when the mirror lived under $CI_PROJECT_DIR the
+      # clean choked trying to delete the locked provider .exe ("failed to remove ... Invalid
+      # argument"), failing the checkout before the script ran. Keeping it next to the reused
+      # state under $TF_STATE_DIR keeps it off the churned repo entirely.
+      $mirrorRoot = Join-Path $env:TF_STATE_DIR '.provider-mirror'
       $ns = $env:PROVIDER_NAMESPACE
       $type = $env:PROVIDER_TYPE
+      $mirror = Join-Path $mirrorRoot "registry.terraform.io\$ns\$type\$($env:PROVIDER_VERSION)\windows_amd64"
+      New-Item -ItemType Directory -Force -Path $mirror | Out-Null
+      $exe = "terraform-provider-adlc_v$($env:PROVIDER_VERSION).exe"
+      Copy-Item "dist\$exe" (Join-Path $mirror $exe) -Force
+      $mirrorFwd = $mirrorRoot -replace '\\','/'
       $tfrc = @(
         'provider_installation {'
         '  filesystem_mirror {'
-        "    path    = `"$ciDir/.provider-mirror`""
+        "    path    = `"$mirrorFwd`""
         "    include = [`"registry.terraform.io/$ns/$type`"]"
         '  }'
         '  direct {'

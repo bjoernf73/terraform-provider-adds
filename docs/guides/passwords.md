@@ -148,6 +148,27 @@ Changing `var.rotation_marker` replaces the resource: a new password is generate
 new `password` value applied), and `vault_kv_secret_v2.jdoe` picks up the new value on the
 same apply, since it references `adlc_user_password.jdoe.password` directly.
 
+## Forcing a password change at next logon
+
+Set `change_password_at_next_logon = true` to require the user to choose a new password the
+first time they sign in (this sets AD's `pwdLastSet` to 0). The typical use is a personal
+account: Terraform generates a strong initial password, you hand it to the user (for example
+through Vault), and they must replace it at first logon.
+
+```hcl
+resource "adlc_user_password" "jdoe" {
+  user                          = adlc_user.jdoe.id
+  change_password_at_next_logon = true
+}
+```
+
+This flag is fire-and-forget. Active Directory clears it as soon as the user changes the
+password, so there is nothing stable to reconcile against; the resource sets it when it sets
+the password and never reads it back. Leave it `false` (the default) for automation accounts
+that keep using the stored password. It cannot be combined with
+`adlc_user.password_never_expires` or `cannot_change_password` on the same account, because
+Active Directory rejects that combination.
+
 ## Detecting drift without resetting anything
 
 `password_last_set` mirrors AD's `pwdLastSet` for `user`. It is refreshed on every plan
