@@ -55,11 +55,12 @@ func liveADClient(t *testing.T) *client.Client {
 	return c
 }
 
-// TestEnsureUserEnabledNoPasswordDefers reproduces the orphaned-account failure: a user with
-// enabled = true and no password is created disabled, and adopting it again (the second
-// EnsureUser, which runs the Set-ADUser branch) must not fail with "password does not meet the
-// length, complexity, or history requirement". Enabling is deferred to a password resource.
-func TestEnsureUserEnabledNoPasswordDefers(t *testing.T) {
+// TestEnsureUserEnabledNoPasswordBootstraps verifies that a user with enabled = true and no
+// password is brought into the enabled state: EnsureUser sets a throwaway bootstrap password
+// (never surfaced) so Active Directory allows enabling it. Adopting it again (the second
+// EnsureUser, which runs the Set-ADUser branch) must stay enabled and must not fail with
+// "password does not meet the length, complexity, or history requirement".
+func TestEnsureUserEnabledNoPasswordBootstraps(t *testing.T) {
 	c := liveADClient(t)
 	ctx := context.Background()
 
@@ -87,17 +88,17 @@ func TestEnsureUserEnabledNoPasswordDefers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("first EnsureUser: %v", err)
 	}
-	if created.Enabled {
-		t.Errorf("a passwordless account must be created disabled, got enabled = true")
+	if !created.Enabled {
+		t.Errorf("a passwordless account with enabled = true must be enabled via a bootstrap password, got enabled = false")
 	}
 
-	// Adopt the now-existing, still-passwordless account. Before the fix this threw the
-	// password-policy error from Set-ADUser -Enabled $true.
+	// Adopt the now-existing account. The account already has the bootstrap password, so the
+	// enable attempt succeeds without resetting it again.
 	adopted, err := EnsureUser(ctx, c, input)
 	if err != nil {
 		t.Fatalf("second EnsureUser (adopt) must not fail: %v", err)
 	}
-	if adopted.Enabled {
-		t.Errorf("adopting a passwordless account must leave it disabled, got enabled = true")
+	if !adopted.Enabled {
+		t.Errorf("adopting an enabled account must leave it enabled, got enabled = false")
 	}
 }

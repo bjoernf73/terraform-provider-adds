@@ -68,7 +68,8 @@ resource "adlc_group" "operators" {
   scope        = "Global"
 }
 
-# Every settable property populated; enabled once adlc_user_password sets a real password.
+# Every settable property populated; adlc_user enables it via a throwaway bootstrap password,
+# and adlc_user_password sets the real password afterwards.
 resource "adlc_user" "showcase" {
   name                = "ADLC Showcase User"
   sam_account_name    = "adlc-showcase-user"
@@ -109,9 +110,9 @@ resource "adlc_user" "showcase" {
   account_expiration_date = "2099-12-31"
   manager                 = "Administrator"
 
-  # Created disabled at first apply regardless of this value (New-ADUser rejects an empty
-  # password once Enabled is true); adlc_user_password.showcase sets the real password and
-  # enables it, after which this desired value reconciles cleanly on subsequent applies.
+  # Enabled on first apply: with no password set yet, adlc_user sets a throwaway random
+  # password (never stored in state) so Active Directory allows the account to be enabled.
+  # adlc_user_password.showcase then sets the real password without changing the enabled state.
   enabled                            = true
   password_never_expires             = true
   cannot_change_password             = false
@@ -610,7 +611,7 @@ output "user" {
 }
 
 # Sets a password each apply. keepers pins it to a fixed value so the same fixed-name
-# showcase run does not generate a new password (and re-enable the account) every time.
+# showcase run does not generate a new password every time.
 resource "adlc_user_password" "showcase" {
   user   = adlc_user.showcase.id
   length = 28
