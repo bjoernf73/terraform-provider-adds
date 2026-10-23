@@ -112,6 +112,11 @@ unit:
     TF_CLI_CONFIG_FILE: "$CI_PROJECT_DIR/.ci.tfrc"
     # Persistent local state/plan on the self-hosted runner, reused across pipeline runs.
     TF_STATE_DIR: 'C:\tftest'
+    # Exclude .provider-mirror from `git clean` on this persistent runner. Earlier runs staged
+    # the provider .exe there; a leftover copy can be held open by an orphaned plugin process,
+    # so `git clean -ffdx` fails to delete it ("Invalid argument") and the checkout aborts before
+    # the script runs. The mirror is staged under $TF_STATE_DIR now, so nothing in the repo needs it.
+    GIT_CLEAN_FLAGS: "-ffdx -e .provider-mirror"
   before_script:
     - |
       $ErrorActionPreference = 'Stop'
