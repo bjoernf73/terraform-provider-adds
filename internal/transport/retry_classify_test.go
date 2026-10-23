@@ -47,7 +47,7 @@ func TestIsEmptyStdinResult(t *testing.T) {
 		want   bool
 	}{
 		{"sentinel exit code", Result{ExitCode: emptyStdinExitCode}, true},
-		{"marker on stderr", Result{ExitCode: 1, Stderr: "ADLC_EMPTY_STDIN"}, true},
+		{"marker on stderr", Result{ExitCode: 1, Stderr: "ADDS_EMPTY_STDIN"}, true},
 		{"clean success", Result{ExitCode: 0, Stdout: `{"ok":true}`}, false},
 		{"real script failure", Result{ExitCode: 1, Stderr: "Get-ADObject: not found"}, false},
 	}
@@ -67,7 +67,7 @@ func TestEmptyStdinSentinelMatchesBootstrap(t *testing.T) {
 	if emptyStdinExitCode != 97 {
 		t.Fatalf("emptyStdinExitCode = %d, want 97 (must match powershell bootstrap)", emptyStdinExitCode)
 	}
-	if emptyStdinMarker != "ADLC_EMPTY_STDIN" {
-		t.Fatalf("emptyStdinMarker = %q, want ADLC_EMPTY_STDIN (must match powershell bootstrap)", emptyStdinMarker)
+	if emptyStdinMarker != "ADDS_EMPTY_STDIN" {
+		t.Fatalf("emptyStdinMarker = %q, want ADDS_EMPTY_STDIN (must match powershell bootstrap)", emptyStdinMarker)
 	}
 }

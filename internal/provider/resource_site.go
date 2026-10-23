@@ -14,8 +14,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
-	"github.com/bjoernf73/terraform-provider-adlc/internal/ad"
-	"github.com/bjoernf73/terraform-provider-adlc/internal/client"
+	"github.com/bjoernf73/terraform-provider-adds/internal/ad"
+	"github.com/bjoernf73/terraform-provider-adds/internal/client"
 )
 
 var (
@@ -42,7 +42,7 @@ func (r *siteResource) Metadata(_ context.Context, req resource.MetadataRequest,
 func (r *siteResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	computed := []planmodifier.String{stringplanmodifier.UseStateForUnknown()}
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Manages an Active Directory replication site. Sites group domain controllers by network location and are assigned CIDR networks with `adlc_subnet`.",
+		MarkdownDescription: "Manages an Active Directory replication site. Sites group domain controllers by network location and are assigned CIDR networks with `adds_subnet`.",
 		Attributes: map[string]schema.Attribute{
 			"id":                 schema.StringAttribute{Computed: true, MarkdownDescription: "Terraform identifier. Equals the site distinguished name.", PlanModifiers: computed},
 			"name":               schema.StringAttribute{Required: true, MarkdownDescription: "Replication site name. Changing it replaces the site.", PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}},
@@ -56,12 +56,12 @@ func (r *siteResource) Configure(_ context.Context, req resource.ConfigureReques
 	if req.ProviderData == nil {
 		return
 	}
-	adlcClient, ok := req.ProviderData.(*client.Client)
+	addsClient, ok := req.ProviderData.(*client.Client)
 	if !ok {
 		resp.Diagnostics.AddError("Unexpected provider data type", fmt.Sprintf("Expected *client.Client, got %T", req.ProviderData))
 		return
 	}
-	r.client = adlcClient
+	r.client = addsClient
 }
 
 func (r *siteResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {

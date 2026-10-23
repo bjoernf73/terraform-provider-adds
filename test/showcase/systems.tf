@@ -10,7 +10,7 @@ locals {
   ]
 }
 
-resource "adlc_organizational_unit" "systems" {
+resource "adds_organizational_unit" "systems" {
   path        = "${var.showcase_path}/Systems"
   description = "Parent OU for per-system subtrees"
 }
@@ -20,13 +20,13 @@ module "system" {
   source   = "./modules/system"
 
   system         = each.value
-  systems_path   = adlc_organizational_unit.systems.path
-  domain_netbios = data.adlc_domain.current.netbios_name
-  dns_root       = data.adlc_domain.current.dns_root
+  systems_path   = adds_organizational_unit.systems.path
+  domain_netbios = data.adds_domain.current.netbios_name
+  dns_root       = data.adds_domain.current.dns_root
 
   # gMSAs need the forest KDS root key to already exist and be effective.
   depends_on = [
-    adlc_organizational_unit.systems,
-    adlc_kds_root_key.showcase,
+    adds_organizational_unit.systems,
+    adds_kds_root_key.showcase,
   ]
 }

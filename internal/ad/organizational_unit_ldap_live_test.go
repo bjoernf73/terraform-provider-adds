@@ -23,7 +23,7 @@ type ouModuleRead struct {
 }
 
 // TestOrganizationalUnitReadLDAPParity reads the always-present Domain Controllers OU via the
-// LDAP path and via Get-ADOrganizationalUnit and asserts they agree. Host-gated: set ADLC_HOST.
+// LDAP path and via Get-ADOrganizationalUnit and asserts they agree. Host-gated: set ADDS_HOST.
 func TestOrganizationalUnitReadLDAPParity(t *testing.T) {
 	c := liveADClient(t)
 	ctx := context.Background()

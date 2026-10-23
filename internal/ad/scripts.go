@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/bjoernf73/terraform-provider-adlc/internal/client"
+	"github.com/bjoernf73/terraform-provider-adds/internal/client"
 )
 
 //go:embed scripts/*.ps1
@@ -74,17 +74,17 @@ func buildScript(c *client.Client, payload map[string]any, names ...string) (str
 
 	// Every operation runs inside a try/catch keyed to an event-log source named after the
 	// operation script (without the .ps1 extension). Failures are logged to the
-	// 'terraform-provider-adlc' event log on the target host and re-thrown. Every operation
+	// 'terraform-provider-adds' event log on the target host and re-thrown. Every operation
 	// also logs on success: mutating operations as a change (event 1000), read-only
 	// operations as a read (event 1002). Helpers live in common.ps1.
 	fmt.Fprintf(&builder, "$scriptSource = '%s'\ntry {\n", source)
 	builder.WriteString(script(body))
 	if isMutatingScript(source) {
-		fmt.Fprintf(&builder, "\nWrite-ADLCChange -Source $scriptSource -Message \"operation '%s' completed successfully\"\n", source)
+		fmt.Fprintf(&builder, "\nWrite-ADDSChange -Source $scriptSource -Message \"operation '%s' completed successfully\"\n", source)
 	} else {
-		fmt.Fprintf(&builder, "\nWrite-ADLCRead -Source $scriptSource -Message \"operation '%s' completed successfully\"\n", source)
+		fmt.Fprintf(&builder, "\nWrite-ADDSRead -Source $scriptSource -Message \"operation '%s' completed successfully\"\n", source)
 	}
-	builder.WriteString("}\ncatch {\n    Write-ADLCFailure -Source $scriptSource -ErrorRecord $_\n    throw\n}\n")
+	builder.WriteString("}\ncatch {\n    Write-ADDSFailure -Source $scriptSource -ErrorRecord $_\n    throw\n}\n")
 
 	return builder.String(), nil
 }

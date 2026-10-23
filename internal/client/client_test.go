@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bjoernf73/terraform-provider-adlc/internal/config"
-	"github.com/bjoernf73/terraform-provider-adlc/internal/transport"
+	"github.com/bjoernf73/terraform-provider-adds/internal/config"
+	"github.com/bjoernf73/terraform-provider-adds/internal/transport"
 )
 
 type executionFailureRunner struct {

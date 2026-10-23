@@ -30,14 +30,14 @@ function Get-ServerParams {
 # from these helpers skip it entirely. One connection is cached per process and reused.
 # ---------------------------------------------------------------------------
 
-$script:ADLCLdapConnection = $null
+$script:ADDSLdapConnection = $null
 
 # The DC or domain to bind to, resolved without depending on any single environment variable.
 # Preference: the configured domain_controller; then USERDNSDOMAIN (populated under WinRM but
 # often absent in an SSH exec session); then the machine's domain membership read from the
 # directory and, last, from the local network configuration. The domain forms let the DC
 # locator resolve a reachable DC.
-function Get-ADLCLdapServer {
+function Get-ADDSLdapServer {
     if ($null -ne $payload -and $null -ne $payload.domain_controller -and -not [string]::IsNullOrWhiteSpace([string]$payload.domain_controller)) {
         return [string]$payload.domain_controller
     }
@@ -70,12 +70,12 @@ function Get-ADLCLdapServer {
     return $null
 }
 
-function Get-ADLCLdapConnection {
-    if ($null -ne $script:ADLCLdapConnection) {
-        return $script:ADLCLdapConnection
+function Get-ADDSLdapConnection {
+    if ($null -ne $script:ADDSLdapConnection) {
+        return $script:ADDSLdapConnection
     }
 
-    $server = Get-ADLCLdapServer
+    $server = Get-ADDSLdapServer
     if ([string]::IsNullOrWhiteSpace($server)) {
         throw "cannot determine a domain controller to bind to: set domain_controller or run on a domain-joined host"
     }
@@ -89,21 +89,21 @@ function Get-ADLCLdapConnection {
     $connection.SessionOptions.Sealing = $true
     $connection.Bind()
 
-    $script:ADLCLdapConnection = $connection
+    $script:ADDSLdapConnection = $connection
     return $connection
 }
 
 # Reads the RootDSE (base scope, empty DN) and returns the requested operational attributes.
-function Get-ADLCRootDSE([string[]]$Attributes) {
-    $connection = Get-ADLCLdapConnection
+function Get-ADDSRootDSE([string[]]$Attributes) {
+    $connection = Get-ADDSLdapConnection
     $request = New-Object System.DirectoryServices.Protocols.SearchRequest('', '(objectClass=*)', ([System.DirectoryServices.Protocols.SearchScope]::Base), $Attributes)
     $response = $connection.SendRequest($request)
     return $response.Entries[0]
 }
 
 # Base-reads a single entry by DN, returning $null when it does not exist.
-function Get-ADLCEntry([string]$DistinguishedName, [string[]]$Attributes, [string]$Filter = '(objectClass=*)') {
-    $connection = Get-ADLCLdapConnection
+function Get-ADDSEntry([string]$DistinguishedName, [string[]]$Attributes, [string]$Filter = '(objectClass=*)') {
+    $connection = Get-ADDSLdapConnection
     $request = New-Object System.DirectoryServices.Protocols.SearchRequest($DistinguishedName, $Filter, ([System.DirectoryServices.Protocols.SearchScope]::Base), $Attributes)
     try {
         $response = $connection.SendRequest($request)
@@ -123,8 +123,8 @@ function Get-ADLCEntry([string]$DistinguishedName, [string[]]$Attributes, [strin
 }
 
 # Searches under a base DN and returns the matching entries (possibly none).
-function Search-ADLCEntries([string]$BaseDN, [string]$Filter, [System.DirectoryServices.Protocols.SearchScope]$Scope, [string[]]$Attributes) {
-    $connection = Get-ADLCLdapConnection
+function Search-ADDSEntries([string]$BaseDN, [string]$Filter, [System.DirectoryServices.Protocols.SearchScope]$Scope, [string[]]$Attributes) {
+    $connection = Get-ADDSLdapConnection
     $request = New-Object System.DirectoryServices.Protocols.SearchRequest($BaseDN, $Filter, $Scope, $Attributes)
     $response = $connection.SendRequest($request)
     return $response.Entries
@@ -132,8 +132,8 @@ function Search-ADLCEntries([string]$BaseDN, [string]$Filter, [System.DirectoryS
 
 # Replaces an attribute's values via an LDAP modify. Passing no values (or only empty strings)
 # clears the attribute: an LDAP replace with no values removes it.
-function Set-ADLCAttribute([string]$DistinguishedName, [string]$Name, [string[]]$Values) {
-    $connection = Get-ADLCLdapConnection
+function Set-ADDSAttribute([string]$DistinguishedName, [string]$Name, [string[]]$Values) {
+    $connection = Get-ADDSLdapConnection
     $modification = New-Object System.DirectoryServices.Protocols.DirectoryAttributeModification
     $modification.Name = $Name
     $modification.Operation = [System.DirectoryServices.Protocols.DirectoryAttributeOperation]::Replace
@@ -147,7 +147,7 @@ function Set-ADLCAttribute([string]$DistinguishedName, [string]$Name, [string[]]
 }
 
 # Reads a single string-valued attribute, or $null when absent.
-function Get-ADLCString($Entry, [string]$Name) {
+function Get-ADDSString($Entry, [string]$Name) {
     if ($null -eq $Entry -or -not $Entry.Attributes.Contains($Name)) {
         return $null
     }
@@ -156,7 +156,7 @@ function Get-ADLCString($Entry, [string]$Name) {
 }
 
 # Reads every value of a multi-valued string attribute as an array (empty when absent).
-function Get-ADLCStrings($Entry, [string]$Name) {
+function Get-ADDSStrings($Entry, [string]$Name) {
     if ($null -eq $Entry -or -not $Entry.Attributes.Contains($Name)) {
         return @()
     }
@@ -173,7 +173,7 @@ function ConvertFrom-DNToDnsName([string]$DistinguishedName) {
 # Reads the packed Version watermark from a GPO's SYSVOL GPT.ini. $SysvolPath is the
 # gPCFileSysPath UNC (also exposed as a Gpo object's .Path). Returns 0 when the file or the
 # Version line is absent. The low word is the computer version, the high word the user version.
-function Get-ADLCGptIniVersion([string]$SysvolPath) {
+function Get-ADDSGptIniVersion([string]$SysvolPath) {
     if ([string]::IsNullOrWhiteSpace($SysvolPath)) {
         return [int64]0
     }
@@ -210,18 +210,18 @@ function Convert-DomainModeFromBehaviorVersion($Version) {
 
 # fSMORoleOwner points at an NTDS Settings object; its parent server object carries the
 # dNSHostName that the ActiveDirectory module reports for the role holder.
-function Resolve-ADLCFsmoHost([string]$NtdsSettingsDN) {
+function Resolve-ADDSFsmoHost([string]$NtdsSettingsDN) {
     if ([string]::IsNullOrWhiteSpace($NtdsSettingsDN)) {
         return $null
     }
 
     $serverDN = Get-ParentDN $NtdsSettingsDN
-    $entry = Get-ADLCEntry -DistinguishedName $serverDN -Attributes @('dNSHostName')
-    return Get-ADLCString $entry 'dNSHostName'
+    $entry = Get-ADDSEntry -DistinguishedName $serverDN -Attributes @('dNSHostName')
+    return Get-ADDSString $entry 'dNSHostName'
 }
 
 # Decodes an entry's objectSid to its SDDL string, or $null when absent.
-function Get-ADLCSid($Entry) {
+function Get-ADDSSid($Entry) {
     if ($null -eq $Entry -or -not $Entry.Attributes.Contains('objectSid')) {
         return $null
     }
@@ -231,7 +231,7 @@ function Get-ADLCSid($Entry) {
 }
 
 # Decodes an entry's objectGUID to its canonical string, or $null when absent.
-function Get-ADLCGuid($Entry) {
+function Get-ADDSGuid($Entry) {
     if ($null -eq $Entry -or -not $Entry.Attributes.Contains('objectGUID')) {
         return $null
     }
@@ -241,14 +241,14 @@ function Get-ADLCGuid($Entry) {
 }
 
 # Escapes a byte array as the backslash-hex form an LDAP filter needs for binary attributes.
-function ConvertTo-ADLCFilterBytes([byte[]]$Bytes) {
+function ConvertTo-ADDSFilterBytes([byte[]]$Bytes) {
     return (($Bytes | ForEach-Object { '\{0:x2}' -f $_ }) -join '')
 }
 
 # Reads an object's security descriptor (owner/group/DACL, never the SACL, so no privilege is
 # required) as a parsed ActiveDirectorySecurity, or $null when the object has none.
-function Get-ADLCSecurityDescriptor([string]$DistinguishedName) {
-    $connection = Get-ADLCLdapConnection
+function Get-ADDSSecurityDescriptor([string]$DistinguishedName) {
+    $connection = Get-ADDSLdapConnection
     $request = New-Object System.DirectoryServices.Protocols.SearchRequest($DistinguishedName, '(objectClass=*)', ([System.DirectoryServices.Protocols.SearchScope]::Base), @('nTSecurityDescriptor'))
     $masks = [System.DirectoryServices.Protocols.SecurityMasks]::Owner -bor [System.DirectoryServices.Protocols.SecurityMasks]::Group -bor [System.DirectoryServices.Protocols.SecurityMasks]::Dacl
     [void]$request.Controls.Add((New-Object System.DirectoryServices.Protocols.SecurityDescriptorFlagControl($masks)))
@@ -274,7 +274,7 @@ function Get-ADLCSecurityDescriptor([string]$DistinguishedName) {
 
 # True when the descriptor carries the ProtectedFromAccidentalDeletion ACE: an explicit Deny for
 # Everyone (S-1-1-0) including Delete and DeleteTree, matching the ActiveDirectory module.
-function Test-ADLCProtectedFromAccidentalDeletion($Security) {
+function Test-ADDSProtectedFromAccidentalDeletion($Security) {
     if ($null -eq $Security) {
         return $false
     }
@@ -296,7 +296,7 @@ function Test-ADLCProtectedFromAccidentalDeletion($Security) {
 
 # True when the descriptor grants the SID an explicit Allow WriteProperty on the group member
 # attribute - the ACE that 'manager can update membership' adds.
-function Test-ADLCMemberWriteGranted($Security, [string]$Sid) {
+function Test-ADDSMemberWriteGranted($Security, [string]$Sid) {
     if ($null -eq $Security -or [string]::IsNullOrWhiteSpace($Sid)) {
         return $false
     }
@@ -315,7 +315,7 @@ function Test-ADLCMemberWriteGranted($Security, [string]$Sid) {
 
 # True when the descriptor denies the User-Change-Password control right to Everyone or Self,
 # which is how 'user cannot change password' is stored. Matches the ActiveDirectory module.
-function Test-ADLCCannotChangePassword($Security) {
+function Test-ADDSCannotChangePassword($Security) {
     if ($null -eq $Security) {
         return $false
     }
@@ -335,21 +335,21 @@ function Test-ADLCCannotChangePassword($Security) {
 
 # LDAP counterpart of Resolve-ADPrincipal: resolves a DN, GUID, SID, DOMAIN\name or sAMAccountName
 # to an entry carrying the requested attributes, or $null when none matches.
-function Resolve-ADLCPrincipal([string]$Identity, [string[]]$Attributes = @('distinguishedName', 'objectSid')) {
+function Resolve-ADDSPrincipal([string]$Identity, [string[]]$Attributes = @('distinguishedName', 'objectSid')) {
     if ($Identity -match '^(CN|OU|DC)=') {
-        return Get-ADLCEntry -DistinguishedName $Identity -Attributes $Attributes
+        return Get-ADDSEntry -DistinguishedName $Identity -Attributes $Attributes
     }
 
     $domainDN = Get-DomainDN
     $parsedGuid = [guid]::Empty
     if ([guid]::TryParse($Identity, [ref]$parsedGuid)) {
-        $filter = '(objectGUID=' + (ConvertTo-ADLCFilterBytes $parsedGuid.ToByteArray()) + ')'
+        $filter = '(objectGUID=' + (ConvertTo-ADDSFilterBytes $parsedGuid.ToByteArray()) + ')'
     }
     elseif ($Identity -match '^S-\d-') {
         $sidObject = New-Object System.Security.Principal.SecurityIdentifier($Identity)
         $sidBytes = New-Object byte[] ($sidObject.BinaryLength)
         $sidObject.GetBinaryForm($sidBytes, 0)
-        $filter = '(objectSid=' + (ConvertTo-ADLCFilterBytes $sidBytes) + ')'
+        $filter = '(objectSid=' + (ConvertTo-ADDSFilterBytes $sidBytes) + ')'
     }
     else {
         $sam = $Identity
@@ -357,7 +357,7 @@ function Resolve-ADLCPrincipal([string]$Identity, [string[]]$Attributes = @('dis
         $filter = '(sAMAccountName=' + (ConvertTo-LDAPFilterValue $sam) + ')'
     }
 
-    $hits = @(Search-ADLCEntries $domainDN $filter ([System.DirectoryServices.Protocols.SearchScope]::Subtree) $Attributes)
+    $hits = @(Search-ADDSEntries $domainDN $filter ([System.DirectoryServices.Protocols.SearchScope]::Subtree) $Attributes)
     if ($hits.Count -gt 0) {
         return $hits[0]
     }
@@ -366,7 +366,7 @@ function Resolve-ADLCPrincipal([string]$Identity, [string[]]$Attributes = @('dis
 }
 
 function Get-DomainDN {
-    $entry = Get-ADLCRootDSE @('defaultNamingContext')
+    $entry = Get-ADDSRootDSE @('defaultNamingContext')
     return [string]$entry.Attributes['defaultNamingContext'][0]
 }
 
@@ -627,22 +627,22 @@ function Assert-NotAdminCountProtected([string]$DistinguishedName, [bool]$Ignore
 # Event logging
 #
 # Every operation that changes AD, and every operation that fails, records an entry in a
-# classic Windows event log named 'terraform-provider-adlc' on the target host. Each
+# classic Windows event log named 'terraform-provider-adds' on the target host. Each
 # operation script logs under its own source (the script file name without the .ps1
 # extension) so entries can be filtered per operation. The log and each source are created
 # on demand. The *-EventLog cmdlets were removed from PowerShell 7, so the .NET
 # System.Diagnostics.EventLog API is used directly.
 # ---------------------------------------------------------------------------
 
-$script:ADLCEventLogName = 'terraform-provider-adlc'
+$script:ADDSEventLogName = 'terraform-provider-adds'
 
 # Key names whose values must never be written to the event log in cleartext.
-$script:ADLCSensitiveKeyPattern = 'password|passphrase|secret|credential|private_key|pfx|token'
+$script:ADDSSensitiveKeyPattern = 'password|passphrase|secret|credential|private_key|pfx|token'
 
 # Ensures the classic event log and the given source both exist. CreateEventSource creates
 # the log too when it is missing. Requires administrator rights on the target host and is a
 # no-op once the source is registered.
-function Register-ADLCEventSource([string]$Source) {
+function Register-ADDSEventSource([string]$Source) {
     if ([string]::IsNullOrWhiteSpace($Source)) {
         return
     }
@@ -651,13 +651,13 @@ function Register-ADLCEventSource([string]$Source) {
         return
     }
 
-    [System.Diagnostics.EventLog]::CreateEventSource($Source, $script:ADLCEventLogName)
+    [System.Diagnostics.EventLog]::CreateEventSource($Source, $script:ADDSEventLogName)
 }
 
 # Writes one entry to the provider event log, registering the source on first use. Logging
 # must never mask the operation it describes, so permission or registration failures are
 # swallowed.
-function Write-ADLCEvent {
+function Write-ADDSEvent {
     param(
         [string]$Source,
         [System.Diagnostics.EventLogEntryType]$EntryType = [System.Diagnostics.EventLogEntryType]::Information,
@@ -670,7 +670,7 @@ function Write-ADLCEvent {
     }
 
     try {
-        Register-ADLCEventSource $Source
+        Register-ADDSEventSource $Source
         [System.Diagnostics.EventLog]::WriteEntry($Source, $Message, $EntryType, $EventId)
     }
     catch {
@@ -680,7 +680,7 @@ function Write-ADLCEvent {
 
 # Renders $payload as JSON for inclusion in log entries, masking values whose key names
 # look like secrets so passwords never reach the event log in cleartext.
-function Get-ADLCInputText {
+function Get-ADDSInputText {
     if ($null -eq $payload) {
         return '<no input>'
     }
@@ -688,7 +688,7 @@ function Get-ADLCInputText {
     try {
         $redacted = [ordered]@{}
         foreach ($property in $payload.PSObject.Properties) {
-            if ($property.Name -match $script:ADLCSensitiveKeyPattern) {
+            if ($property.Name -match $script:ADDSSensitiveKeyPattern) {
                 $redacted[$property.Name] = '***redacted***'
             }
             else {
@@ -705,22 +705,22 @@ function Get-ADLCInputText {
 
 # Logs a completed change together with the script input. Called automatically after a
 # mutating operation body succeeds.
-function Write-ADLCChange([string]$Source, [string]$Message) {
-    $entry = "$Message`nInput: $(Get-ADLCInputText)"
-    Write-ADLCEvent -Source $Source -EntryType ([System.Diagnostics.EventLogEntryType]::Information) -Message $entry -EventId 1000
+function Write-ADDSChange([string]$Source, [string]$Message) {
+    $entry = "$Message`nInput: $(Get-ADDSInputText)"
+    Write-ADDSEvent -Source $Source -EntryType ([System.Diagnostics.EventLogEntryType]::Information) -Message $entry -EventId 1000
 }
 
 # Logs a completed read/query together with the script input. Called automatically after a
 # non-mutating operation body succeeds. Uses a distinct event ID (1002) so read traffic can
 # be filtered apart from changes (1000) and failures (1001).
-function Write-ADLCRead([string]$Source, [string]$Message) {
-    $entry = "$Message`nInput: $(Get-ADLCInputText)"
-    Write-ADLCEvent -Source $Source -EntryType ([System.Diagnostics.EventLogEntryType]::Information) -Message $entry -EventId 1002
+function Write-ADDSRead([string]$Source, [string]$Message) {
+    $entry = "$Message`nInput: $(Get-ADDSInputText)"
+    Write-ADDSEvent -Source $Source -EntryType ([System.Diagnostics.EventLogEntryType]::Information) -Message $entry -EventId 1002
 }
 
 # Logs a failed operation with the script input and the error message. Called automatically
 # when an operation body throws.
-function Write-ADLCFailure([string]$Source, [System.Management.Automation.ErrorRecord]$ErrorRecord) {
+function Write-ADDSFailure([string]$Source, [System.Management.Automation.ErrorRecord]$ErrorRecord) {
     $errorText = '<unknown error>'
     if ($null -ne $ErrorRecord) {
         $errorText = [string]$ErrorRecord.Exception.Message
@@ -729,6 +729,6 @@ function Write-ADLCFailure([string]$Source, [System.Management.Automation.ErrorR
         }
     }
 
-    $entry = "Operation '$Source' failed.`nInput: $(Get-ADLCInputText)`nError: $errorText"
-    Write-ADLCEvent -Source $Source -EntryType ([System.Diagnostics.EventLogEntryType]::Error) -Message $entry -EventId 1001
+    $entry = "Operation '$Source' failed.`nInput: $(Get-ADDSInputText)`nError: $errorText"
+    Write-ADDSEvent -Source $Source -EntryType ([System.Diagnostics.EventLogEntryType]::Error) -Message $entry -EventId 1001
 }

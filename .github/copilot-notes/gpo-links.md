@@ -5,13 +5,13 @@ Context for Group Policy work in this provider, kept in-repo so it travels acros
 committed file is the portable one.)
 
 ## Resources involved
-- `adlc_backup_gpo` — imports a GPMC `Backup-GPO` folder via `Import-GPO`.
-- `adlc_json_gpo` — rewrites SYSVOL files directly from a JSON description. Embeds Microsoft's
+- `adds_backup_gpo` — imports a GPMC `Backup-GPO` folder via `Import-GPO`.
+- `adds_json_gpo` — rewrites SYSVOL files directly from a JSON description. Embeds Microsoft's
   `GPRegistryPolicyParser` (`internal/ad/scripts/gpregistrypolicyparser.ps1`, MIT-licensed; see
   `THIRD_PARTY_NOTICES.md`).
-- `adlc_gpo_links` — authoritative set of GPO links on one OU/domain/site.
-- `adlc_gpo_permission`, `adlc_gpo_security_filter`, `adlc_gpo_wmi_filter`.
-- `adlc_gpo` data source — read a GPO by display name or GUID.
+- `adds_gpo_links` — authoritative set of GPO links on one OU/domain/site.
+- `adds_gpo_permission`, `adds_gpo_security_filter`, `adds_gpo_wmi_filter`.
+- `adds_gpo` data source — read a GPO by display name or GUID.
 - Every GPO script does `Import-Module GroupPolicy`.
 
 ## FIXED: gpo_links create path (Set-GPLink vs New-GPLink)
@@ -22,7 +22,7 @@ committed file is the portable one.)
 - Fix: capture the target's existing link GUIDs (`Get-GPInheritance`) up front, then `New-GPLink`
   for links that don't exist yet and `Set-GPLink` to update existing ones. Order / LinkEnabled /
   Enforced applied the same way; authoritative removal of undeclared links unchanged.
-- Coverage: `adlc_gpo_links` now exercised in `test/e2e` (ssh job) and `test/showcase`.
+- Coverage: `adds_gpo_links` now exercised in `test/e2e` (ssh job) and `test/showcase`.
 
 ## FIXED: json_gpo version not bumping (user/computer version stuck at 0)
 - `versionNumber` (AD) and SYSVOL `GPT.INI` `Version` pack two counters: LOW 16 bits = computer
@@ -88,9 +88,9 @@ against dc1-s13-utv.utv.local (WinRM 5985, Kerberos):
 
 ## Event logging (diagnostic aid)
 - Every op is wrapped in a try/catch (`internal/ad/scripts.go` `buildScript`). Failures ->
-  `Write-ADLCFailure` (event 1001). Mutating success -> `Write-ADLCChange` (1000). As of
-  v0.0.25, read/query success -> `Write-ADLCRead` (1002). Event log name on the target:
-  `terraform-provider-adlc`.
+  `Write-ADDSFailure` (event 1001). Mutating success -> `Write-ADDSChange` (1000). As of
+  v0.0.25, read/query success -> `Write-ADDSRead` (1002). Event log name on the target:
+  `terraform-provider-adds`.
 - Key signal: the ABSENCE of an event for a failed op means the script never executed (that is
   how the powershell.exe stdin bug was identified).
 
@@ -98,5 +98,5 @@ against dc1-s13-utv.utv.local (WinRM 5985, Kerberos):
 - Plan: log onto a MEMBER SERVER as domain admin, point the provider at the DC over WinRM/5986.
   That reproduces the real transport path where the `powershell.exe` stdin bug lives (testing a
   LOCAL powershell.exe on the DC would not — it must go through WinRM).
-- Credentials as env vars (`ADLC_HOST` / `ADLC_USERNAME` / `ADLC_PASSWORD`), never in chat.
+- Credentials as env vars (`ADDS_HOST` / `ADDS_USERNAME` / `ADDS_PASSWORD`), never in chat.
 - Smoke: `go test ./internal/transport -run TestWinRMSmoke -v`, or the `TF_ACC` acceptance tests.

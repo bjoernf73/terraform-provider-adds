@@ -1,10 +1,10 @@
 $domainDN = Get-DomainDN
 
-$rootDse = Get-ADLCRootDSE @('rootDomainNamingContext', 'configurationNamingContext')
+$rootDse = Get-ADDSRootDSE @('rootDomainNamingContext', 'configurationNamingContext')
 $forestDN = [string]$rootDse.Attributes['rootDomainNamingContext'][0]
 $configDN = [string]$rootDse.Attributes['configurationNamingContext'][0]
 
-$domainEntry = Get-ADLCEntry -DistinguishedName $domainDN -Attributes @('objectSid', 'msDS-Behavior-Version', 'wellKnownObjects', 'fSMORoleOwner')
+$domainEntry = Get-ADDSEntry -DistinguishedName $domainDN -Attributes @('objectSid', 'msDS-Behavior-Version', 'wellKnownObjects', 'fSMORoleOwner')
 
 $sid = $null
 if ($null -ne $domainEntry -and $domainEntry.Attributes.Contains('objectSid')) {
@@ -30,17 +30,17 @@ if ($null -ne $domainEntry -and $domainEntry.Attributes.Contains('wellKnownObjec
     }
 }
 
-$pdcEmulator = Resolve-ADLCFsmoHost (Get-ADLCString $domainEntry 'fSMORoleOwner')
+$pdcEmulator = Resolve-ADDSFsmoHost (Get-ADDSString $domainEntry 'fSMORoleOwner')
 
-$infraEntry = Get-ADLCEntry -DistinguishedName ('CN=Infrastructure,' + $domainDN) -Attributes @('fSMORoleOwner')
-$infrastructureMaster = Resolve-ADLCFsmoHost (Get-ADLCString $infraEntry 'fSMORoleOwner')
+$infraEntry = Get-ADDSEntry -DistinguishedName ('CN=Infrastructure,' + $domainDN) -Attributes @('fSMORoleOwner')
+$infrastructureMaster = Resolve-ADDSFsmoHost (Get-ADDSString $infraEntry 'fSMORoleOwner')
 
 # The NetBIOS name lives on the domain's crossRef in the Partitions container.
 $netbios = $null
 $escapedDomainDN = ConvertTo-LDAPFilterValue $domainDN
-$crossRefs = Search-ADLCEntries ('CN=Partitions,' + $configDN) "(&(objectClass=crossRef)(nCName=$escapedDomainDN))" ([System.DirectoryServices.Protocols.SearchScope]::OneLevel) @('nETBIOSName')
+$crossRefs = Search-ADDSEntries ('CN=Partitions,' + $configDN) "(&(objectClass=crossRef)(nCName=$escapedDomainDN))" ([System.DirectoryServices.Protocols.SearchScope]::OneLevel) @('nETBIOSName')
 if ($crossRefs.Count -gt 0) {
-    $netbios = Get-ADLCString $crossRefs[0] 'nETBIOSName'
+    $netbios = Get-ADDSString $crossRefs[0] 'nETBIOSName'
 }
 
 [pscustomobject]@{

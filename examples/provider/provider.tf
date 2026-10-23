@@ -1,13 +1,13 @@
 terraform {
   required_providers {
-    adlc = {
-      source = "bjoernf73/adlc"
+    adds = {
+      source = "bjoernf73/adds"
     }
   }
 }
 
 # WinRM with NTLM authentication.
-provider "adlc" {
+provider "adds" {
   transport       = "winrm"
   host            = "dc1.contoso.local"
   username        = "CONTOSO\\terraform"
@@ -17,7 +17,7 @@ provider "adlc" {
 }
 
 # SSH with password authentication.
-provider "adlc" {
+provider "adds" {
   alias           = "ssh"
   transport       = "ssh"
   host            = "dc1.contoso.local"

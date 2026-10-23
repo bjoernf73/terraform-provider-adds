@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bjoernf73/terraform-provider-adlc/internal/config"
-	"github.com/bjoernf73/terraform-provider-adlc/internal/powershell"
-	"github.com/bjoernf73/terraform-provider-adlc/internal/transport"
+	"github.com/bjoernf73/terraform-provider-adds/internal/config"
+	"github.com/bjoernf73/terraform-provider-adds/internal/powershell"
+	"github.com/bjoernf73/terraform-provider-adds/internal/transport"
 )
 
 // transientScriptErrorAttempts covers a known-transient SSPI hiccup: AD cmdlets such as

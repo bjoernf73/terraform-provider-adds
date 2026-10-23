@@ -8,26 +8,26 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bjoernf73/terraform-provider-adlc/internal/config"
+	"github.com/bjoernf73/terraform-provider-adds/internal/config"
 )
 
 // TestSSHRunTimeout verifies that a remote command which never returns is bounded by the
-// configured timeout instead of blocking forever. Set ADLC_HOST, ADLC_USERNAME and
-// ADLC_PASSWORD to run it.
+// configured timeout instead of blocking forever. Set ADDS_HOST, ADDS_USERNAME and
+// ADDS_PASSWORD to run it.
 func TestSSHRunTimeout(t *testing.T) {
-	host := os.Getenv("ADLC_HOST")
+	host := os.Getenv("ADDS_HOST")
 	if host == "" {
-		t.Skip("ADLC_HOST not set")
+		t.Skip("ADDS_HOST not set")
 	}
-	if os.Getenv("ADLC_PASSWORD") == "" {
-		t.Skip("ADLC_PASSWORD not set; SSH timeout test needs password auth")
+	if os.Getenv("ADDS_PASSWORD") == "" {
+		t.Skip("ADDS_PASSWORD not set; SSH timeout test needs password auth")
 	}
 
 	port := 22
-	if raw := os.Getenv("ADLC_SSH_PORT"); raw != "" {
+	if raw := os.Getenv("ADDS_SSH_PORT"); raw != "" {
 		parsed, err := strconv.Atoi(raw)
 		if err != nil {
-			t.Fatalf("invalid ADLC_SSH_PORT: %v", err)
+			t.Fatalf("invalid ADDS_SSH_PORT: %v", err)
 		}
 		port = parsed
 	}
@@ -36,8 +36,8 @@ func TestSSHRunTimeout(t *testing.T) {
 		Host:           host,
 		Port:           port,
 		Transport:      "ssh",
-		Username:       os.Getenv("ADLC_USERNAME"),
-		Password:       os.Getenv("ADLC_PASSWORD"),
+		Username:       os.Getenv("ADDS_USERNAME"),
+		Password:       os.Getenv("ADDS_PASSWORD"),
 		Insecure:       true, // test only: skip host key verification
 		PowerShellPath: "pwsh",
 		Timeout:        3 * time.Second,

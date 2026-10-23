@@ -1,9 +1,9 @@
 $domainDN = Get-DomainDN
 
 $guidBytes = ([guid]([string]$payload.guid)).ToByteArray()
-$guidFilter = '(objectGUID=' + (ConvertTo-ADLCFilterBytes $guidBytes) + ')'
+$guidFilter = '(objectGUID=' + (ConvertTo-ADDSFilterBytes $guidBytes) + ')'
 $attributes = @('name', 'sAMAccountName', 'description', 'displayName', 'mail', 'info', 'wWWHomePage', 'managedBy', 'groupType', 'objectGUID', 'objectSid')
-$found = @(Search-ADLCEntries $domainDN $guidFilter ([System.DirectoryServices.Protocols.SearchScope]::Subtree) $attributes)
+$found = @(Search-ADDSEntries $domainDN $guidFilter ([System.DirectoryServices.Protocols.SearchScope]::Subtree) $attributes)
 
 if ($found.Count -eq 0) {
     [pscustomobject]@{
@@ -15,10 +15,10 @@ if ($found.Count -eq 0) {
 $group = $found[0]
 $dn = [string]$group.DistinguishedName
 $containerDN = Get-ParentDN $dn
-$managedBy = Get-ADLCString $group 'managedBy'
+$managedBy = Get-ADDSString $group 'managedBy'
 
 # groupType is a bit flag: scope in the low bits, 0x80000000 marks a security group.
-$groupType = [int64](Get-ADLCString $group 'groupType')
+$groupType = [int64](Get-ADDSString $group 'groupType')
 if ($groupType -band 0x8) { $scope = 'Universal' }
 elseif ($groupType -band 0x4) { $scope = 'DomainLocal' }
 else { $scope = 'Global' }
@@ -33,30 +33,30 @@ if ($null -ne $payload.path) {
 
 $managedByMatch = $false
 if (-not [string]::IsNullOrWhiteSpace([string]$payload.managed_by)) {
-    $resolved = Resolve-ADLCPrincipal ([string]$payload.managed_by) @('distinguishedName')
+    $resolved = Resolve-ADDSPrincipal ([string]$payload.managed_by) @('distinguishedName')
     if ($null -ne $resolved -and [string]$resolved.DistinguishedName -eq [string]$managedBy) {
         $managedByMatch = $true
     }
 }
 
-$security = Get-ADLCSecurityDescriptor $dn
-$protected = Test-ADLCProtectedFromAccidentalDeletion $security
+$security = Get-ADDSSecurityDescriptor $dn
+$protected = Test-ADDSProtectedFromAccidentalDeletion $security
 
 $managerCanUpdate = $false
 if (-not [string]::IsNullOrWhiteSpace([string]$managedBy)) {
-    $managerSid = Get-ADLCSid (Get-ADLCEntry -DistinguishedName ([string]$managedBy) -Attributes @('objectSid'))
-    $managerCanUpdate = Test-ADLCMemberWriteGranted $security $managerSid
+    $managerSid = Get-ADDSSid (Get-ADDSEntry -DistinguishedName ([string]$managedBy) -Attributes @('objectSid'))
+    $managerCanUpdate = Test-ADDSMemberWriteGranted $security $managerSid
 }
 
 [pscustomobject]@{
     exists                             = $true
-    name                               = Get-ADLCString $group 'name'
-    sam_account_name                   = Get-ADLCString $group 'sAMAccountName'
-    description                        = Get-ADLCString $group 'description'
-    display_name                       = Get-ADLCString $group 'displayName'
-    mail                               = Get-ADLCString $group 'mail'
-    info                               = Get-ADLCString $group 'info'
-    homepage                           = Get-ADLCString $group 'wWWHomePage'
+    name                               = Get-ADDSString $group 'name'
+    sam_account_name                   = Get-ADDSString $group 'sAMAccountName'
+    description                        = Get-ADDSString $group 'description'
+    display_name                       = Get-ADDSString $group 'displayName'
+    mail                               = Get-ADDSString $group 'mail'
+    info                               = Get-ADDSString $group 'info'
+    homepage                           = Get-ADDSString $group 'wWWHomePage'
     managed_by                         = [string]$managedBy
     managed_by_match                   = $managedByMatch
     manager_can_update_membership      = $managerCanUpdate
@@ -67,6 +67,6 @@ if (-not [string]::IsNullOrWhiteSpace([string]$managedBy)) {
     path_match                         = $pathMatch
     container_dn                       = $containerDN
     distinguished_name                 = $dn
-    guid                               = Get-ADLCGuid $group
-    sid                                = Get-ADLCSid $group
+    guid                               = Get-ADDSGuid $group
+    sid                                = Get-ADDSSid $group
 } | ConvertTo-Json -Compress

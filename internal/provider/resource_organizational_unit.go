@@ -11,8 +11,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
-	"github.com/bjoernf73/terraform-provider-adlc/internal/ad"
-	"github.com/bjoernf73/terraform-provider-adlc/internal/client"
+	"github.com/bjoernf73/terraform-provider-adds/internal/ad"
+	"github.com/bjoernf73/terraform-provider-adds/internal/client"
 )
 
 var (
@@ -97,13 +97,13 @@ func (r *organizationalUnitResource) Configure(_ context.Context, req resource.C
 		return
 	}
 
-	adlcClient, ok := req.ProviderData.(*client.Client)
+	addsClient, ok := req.ProviderData.(*client.Client)
 	if !ok {
 		resp.Diagnostics.AddError("Unexpected provider data type", fmt.Sprintf("Expected *client.Client, got %T", req.ProviderData))
 		return
 	}
 
-	r.client = adlcClient
+	r.client = addsClient
 }
 
 func (r *organizationalUnitResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {

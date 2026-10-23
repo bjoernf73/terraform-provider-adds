@@ -10,7 +10,7 @@ description: |-
 # Anatomy of a Group Policy Object
 
 A GPO is **two linked halves**: a small object in Active Directory and a folder of files in
-SYSVOL. Dissecting - or hand-building, which is what `adlc_json_gpo` does - a GPO means getting
+SYSVOL. Dissecting - or hand-building, which is what `adds_json_gpo` does - a GPO means getting
 both halves, and the exact encoding of every file, right.
 
 ## The two halves
@@ -62,7 +62,7 @@ A given GPO only contains the files for the settings it actually has.
 
 Encoding matters more than people expect. Each client-side extension parses its file with fixed
 expectations, and the failures are **silent** - a mis-encoded file is quietly ignored or
-mis-read, not rejected with an error. This is how `adlc_json_gpo` writes each file:
+mis-read, not rejected with an error. This is how `adds_json_gpo` writes each file:
 
 | File | Content | Encoding |
 | --- | --- | --- |
@@ -112,10 +112,10 @@ A small number like `9` is correct for a machine-only GPO (computer 9, user 0); 
 grows past `65535` once the user side has been edited.
 
 This value is **the same number** as the AD `versionNumber` attribute - not a derived or separate
-number. `adlc_json_gpo` keeps them in lockstep: on each apply it reads `versionNumber`, raises the
+number. `adds_json_gpo` keeps them in lockstep: on each apply it reads `versionNumber`, raises the
 side whose settings changed (a computer change is `+1`, a user change is `+65536`), writes the new
 value back to `versionNumber`, and writes the identical number into `GPT.INI`. That bump is what
-makes clients re-apply the GPO on the next `gpupdate`. (`adlc_backup_gpo` leaves this to
+makes clients re-apply the GPO on the next `gpupdate`. (`adds_backup_gpo` leaves this to
 `Import-GPO`, which writes both itself.)
 
 ## Why a BOM breaks the SYSVOL version

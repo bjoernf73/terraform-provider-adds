@@ -10,7 +10,7 @@ import (
 // TestGroupReadLDAPParity creates a group exercising every field the read reports - including the
 // two ACL-derived ones (manager_can_update_membership, protected_from_accidental_deletion) and
 // managed_by_match - then compares the LDAP read against the module-computed result returned by
-// EnsureGroup. Host-gated: set ADLC_HOST. The group is created under CN=Users and cleaned up.
+// EnsureGroup. Host-gated: set ADDS_HOST. The group is created under CN=Users and cleaned up.
 func TestGroupReadLDAPParity(t *testing.T) {
 	c := liveADClient(t)
 	ctx := context.Background()
@@ -24,8 +24,8 @@ func TestGroupReadLDAPParity(t *testing.T) {
 	}
 
 	suffix := time.Now().UnixNano()
-	name := fmt.Sprintf("adlc-ldap-parity-%d", suffix)
-	sam := fmt.Sprintf("adlc-ldap-%d", suffix%1000000)
+	name := fmt.Sprintf("adds-ldap-parity-%d", suffix)
+	sam := fmt.Sprintf("adds-ldap-%d", suffix%1000000)
 
 	input := GroupInput{
 		Name:                            name,

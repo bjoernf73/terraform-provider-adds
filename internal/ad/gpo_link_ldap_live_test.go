@@ -41,7 +41,7 @@ type gpoLinksModule struct {
 
 // TestGPOLinksReadLDAPParity asserts the LDAP gPLink read matches the GroupPolicy module's
 // Get-GPInheritance for the domain root: same GUIDs, flags, order and block-inheritance. Host-gated:
-// set ADLC_HOST. Ordering direction across multiple links is additionally exercised by the
+// set ADDS_HOST. Ordering direction across multiple links is additionally exercised by the
 // showcase's multi-link OUs (a reversed parse would make those non-idempotent).
 func TestGPOLinksReadLDAPParity(t *testing.T) {
 	c := liveADClient(t)

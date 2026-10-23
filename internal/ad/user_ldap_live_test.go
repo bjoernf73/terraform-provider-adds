@@ -10,7 +10,7 @@ import (
 // TestUserReadLDAPParity creates a user exercising the userAccountControl flags, accountExpires,
 // both ACL-derived fields (cannot_change_password, protected_from_accidental_deletion),
 // manager_match and the full attribute set, then compares the LDAP read against the
-// module-computed result from EnsureUser. Host-gated: set ADLC_HOST. Created under CN=Users and
+// module-computed result from EnsureUser. Host-gated: set ADDS_HOST. Created under CN=Users and
 // cleaned up. The account is left disabled so it needs no password.
 func TestUserReadLDAPParity(t *testing.T) {
 	c := liveADClient(t)
@@ -25,8 +25,8 @@ func TestUserReadLDAPParity(t *testing.T) {
 	}
 
 	suffix := time.Now().UnixNano()
-	name := fmt.Sprintf("adlc-ldap-user-%d", suffix)
-	sam := fmt.Sprintf("adlc-u-%d", suffix%100000000)
+	name := fmt.Sprintf("adds-ldap-user-%d", suffix)
+	sam := fmt.Sprintf("adds-u-%d", suffix%100000000)
 	upn := sam + "@" + "example.test"
 
 	input := UserInput{

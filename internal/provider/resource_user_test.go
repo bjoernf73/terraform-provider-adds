@@ -14,7 +14,7 @@ import (
 // A second plan-only step guards idempotency (no perpetual enabled drift).
 func TestAccUserResource_enabledCreate(t *testing.T) {
 	suffix := acctest.RandStringFromCharSet(6, acctest.CharSetAlphaNum)
-	ou := "adlc-acc-user-" + suffix
+	ou := "adds-acc-user-" + suffix
 	name := "acc-u-" + suffix
 
 	resource.Test(t, resource.TestCase{
@@ -24,12 +24,12 @@ func TestAccUserResource_enabledCreate(t *testing.T) {
 			{
 				Config: testAccUserConfigEnabled(ou, name),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("adlc_user.test", "name", name),
-					resource.TestCheckResourceAttr("adlc_user.test", "sam_account_name", name),
-					resource.TestCheckResourceAttr("adlc_user.test", "enabled", "true"),
-					resource.TestCheckResourceAttrSet("adlc_user.test", "id"),
-					resource.TestCheckResourceAttrSet("adlc_user.test", "distinguished_name"),
-					resource.TestCheckResourceAttrSet("adlc_user.test", "sid"),
+					resource.TestCheckResourceAttr("adds_user.test", "name", name),
+					resource.TestCheckResourceAttr("adds_user.test", "sam_account_name", name),
+					resource.TestCheckResourceAttr("adds_user.test", "enabled", "true"),
+					resource.TestCheckResourceAttrSet("adds_user.test", "id"),
+					resource.TestCheckResourceAttrSet("adds_user.test", "distinguished_name"),
+					resource.TestCheckResourceAttrSet("adds_user.test", "sid"),
 				),
 			},
 			{
@@ -42,17 +42,17 @@ func TestAccUserResource_enabledCreate(t *testing.T) {
 
 func testAccUserConfigEnabled(ou, name string) string {
 	return testAccProviderConfig() + fmt.Sprintf(`
-resource "adlc_organizational_unit" "test" {
+resource "adds_organizational_unit" "test" {
   path           = %[1]q
-  description    = "adlc user acceptance test"
+  description    = "adds user acceptance test"
   delete_subtree = true
 }
 
-resource "adlc_user" "test" {
+resource "adds_user" "test" {
   name                = %[2]q
   sam_account_name    = %[2]q
   user_principal_name = "%[2]s@example.test"
-  path                = adlc_organizational_unit.test.path
+  path                = adds_organizational_unit.test.path
   enabled             = true
 }
 `, ou, name)

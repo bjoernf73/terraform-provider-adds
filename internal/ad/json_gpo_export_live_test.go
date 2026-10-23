@@ -11,13 +11,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bjoernf73/terraform-provider-adlc/internal/client"
+	"github.com/bjoernf73/terraform-provider-adds/internal/client"
 )
 
 func TestJsonGPOExportLive(t *testing.T) {
-	name := os.Getenv("ADLC_GPO_EXPORT_NAME")
+	name := os.Getenv("ADDS_GPO_EXPORT_NAME")
 	if name == "" {
-		t.Skip("ADLC_GPO_EXPORT_NAME not set")
+		t.Skip("ADDS_GPO_EXPORT_NAME not set")
 	}
 	base := liveADClient(t)
 	type exportedMetadata struct {
@@ -51,7 +51,7 @@ func TestJsonGPOExportLive(t *testing.T) {
 				{"$exported =", "export metadata"},
 				{"$exportedJson =", "JSON serialization"},
 			} {
-				body = strings.Replace(body, phase.anchor, "[Console]::Error.WriteLine('ADLC_EXPORT_PHASE: "+phase.label+"')\n"+phase.anchor, 1)
+				body = strings.Replace(body, phase.anchor, "[Console]::Error.WriteLine('ADDS_EXPORT_PHASE: "+phase.label+"')\n"+phase.anchor, 1)
 			}
 			composed, err := buildScript(remote, map[string]any{"name": name}, commonScript, backupGPOCommon, gpRegistryPolicyParser, jsonGPOCommon, jsonGPOExportRead)
 			if err != nil {
@@ -60,7 +60,7 @@ func TestJsonGPOExportLive(t *testing.T) {
 			composed = strings.Replace(composed, script(jsonGPOExportRead), body, 1)
 			for _, module := range []string{"ActiveDirectory", "GroupPolicy"} {
 				statement := "Import-Module " + module + " -ErrorAction Stop"
-				composed = strings.ReplaceAll(composed, statement, "[Console]::Error.WriteLine('ADLC_EXPORT_PHASE: importing "+module+"')\n"+statement+"\n[Console]::Error.WriteLine('ADLC_EXPORT_PHASE: imported "+module+"')")
+				composed = strings.ReplaceAll(composed, statement, "[Console]::Error.WriteLine('ADDS_EXPORT_PHASE: importing "+module+"')\n"+statement+"\n[Console]::Error.WriteLine('ADDS_EXPORT_PHASE: imported "+module+"')")
 			}
 			var result JsonGPOExport
 			err = remote.RunPowerShellJSON(ctx, composed, &result)
@@ -108,9 +108,9 @@ function Get-GPO {
         DisplayName = 'Fixture'
     }
 }
-function Get-JsonGPOSysvolPath { $env:ADLC_EXPORT_FIXTURE }
+function Get-JsonGPOSysvolPath { $env:ADDS_EXPORT_FIXTURE }
 function Get-ADObject {
-	[pscustomobject]@{ flags = [int]$env:ADLC_EXPORT_FLAGS; gPCMachineExtensionNames = $null; gPCUserExtensionNames = $null }
+	[pscustomobject]@{ flags = [int]$env:ADDS_EXPORT_FLAGS; gPCMachineExtensionNames = $null; gPCUserExtensionNames = $null }
 }
 $payload = @{ name = 'Fixture' }
 `
@@ -130,7 +130,7 @@ $payload = @{ name = 'Fixture' }
 					ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 					defer cancel()
 					command := exec.CommandContext(ctx, binary, "-NoProfile", "-NonInteractive", "-File", probe)
-					command.Env = append(os.Environ(), "ADLC_EXPORT_FIXTURE="+root, "ADLC_EXPORT_FLAGS="+strconv.Itoa(flags))
+					command.Env = append(os.Environ(), "ADDS_EXPORT_FIXTURE="+root, "ADDS_EXPORT_FLAGS="+strconv.Itoa(flags))
 					output, err := command.Output()
 					if err != nil {
 						t.Fatalf("local export fixture failed: %v (context: %v)", err, ctx.Err())

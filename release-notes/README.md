@@ -21,7 +21,7 @@ So the notes file must be committed **before** the tag is pushed. The usual flow
 ## Writing good notes
 
 - Lead with user-facing changes: **Fixed**, **Added**, **Changed**, grouped under those headings.
-- Name the resource/attribute/provider setting involved (for example `adlc_gpo_links`,
+- Name the resource/attribute/provider setting involved (for example `adds_gpo_links`,
   `gpo_powershell_path`), so readers can map a line to their config.
 - Call out anything that changes behaviour on upgrade, and how to opt out.
 - Keep internal-only changes (tests, refactors) in a short **Internal** section or omit them.

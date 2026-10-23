@@ -8,8 +8,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
-	"github.com/bjoernf73/terraform-provider-adlc/internal/ad"
-	"github.com/bjoernf73/terraform-provider-adlc/internal/client"
+	"github.com/bjoernf73/terraform-provider-adds/internal/ad"
+	"github.com/bjoernf73/terraform-provider-adds/internal/client"
 )
 
 var (
@@ -49,8 +49,8 @@ func (d *gpoDataSource) Metadata(_ context.Context, req datasource.MetadataReque
 func (d *gpoDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Reads an existing Group Policy Object. Use it to reference a GPO that this Terraform " +
-			"configuration did not create, for example to link it (`adlc_gpo_links`), set its permissions " +
-			"(`adlc_gpo_permission`), or attach a security or WMI filter.",
+			"configuration did not create, for example to link it (`adds_gpo_links`), set its permissions " +
+			"(`adds_gpo_permission`), or attach a security or WMI filter.",
 		Attributes: map[string]schema.Attribute{
 			"identity": schema.StringAttribute{
 				Required: true,
@@ -118,13 +118,13 @@ func (d *gpoDataSource) Configure(_ context.Context, req datasource.ConfigureReq
 		return
 	}
 
-	adlcClient, ok := req.ProviderData.(*client.Client)
+	addsClient, ok := req.ProviderData.(*client.Client)
 	if !ok {
 		resp.Diagnostics.AddError("Unexpected provider data type", fmt.Sprintf("Expected *client.Client, got %T", req.ProviderData))
 		return
 	}
 
-	d.client = adlcClient
+	d.client = addsClient
 }
 
 func (d *gpoDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {

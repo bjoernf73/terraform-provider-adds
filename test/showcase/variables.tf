@@ -47,5 +47,5 @@ variable "timeout_seconds" {
 variable "showcase_path" {
   type        = string
   description = "OU path the showcase objects are created under. Fixed, so repeated runs reconcile rather than accumulate."
-  default     = "TerraformCI/Showcase"
+  default     = "TerraformCI-ADDS/Showcase"
 }

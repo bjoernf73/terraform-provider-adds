@@ -8,8 +8,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
-	"github.com/bjoernf73/terraform-provider-adlc/internal/ad"
-	"github.com/bjoernf73/terraform-provider-adlc/internal/client"
+	"github.com/bjoernf73/terraform-provider-adds/internal/ad"
+	"github.com/bjoernf73/terraform-provider-adds/internal/client"
 )
 
 var (
@@ -37,21 +37,21 @@ func (d *jsonGPOExportDataSource) Metadata(_ context.Context, req datasource.Met
 
 func (d *jsonGPOExportDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Reads a live GPO's SYSVOL content and renders it as JSON, in the exact shape `adlc_json_gpo` " +
+		MarkdownDescription: "Reads a live GPO's SYSVOL content and renders it as JSON, in the exact shape `adds_json_gpo` " +
 			"consumes - the mirror image of that resource: every security principal it finds becomes a portable " +
 			"`####Replace[DOMAIN\\Name]` token instead of being resolved from one. Pair with the `local_file` resource from " +
 			"the `hashicorp/local` provider to persist the result, the same way `Backup-GPO`'s output isn't itself a " +
-			"Terraform concept for `adlc_backup_gpo`:\n\n" +
+			"Terraform concept for `adds_backup_gpo`:\n\n" +
 			"```terraform\n" +
-			"data \"adlc_json_gpo_export\" \"example\" {\n" +
+			"data \"adds_json_gpo_export\" \"example\" {\n" +
 			"  name = \"Domain - GPO5\"\n" +
 			"}\n\n" +
 			"resource \"local_file\" \"example\" {\n" +
 			"  filename = \"${path.module}/json_gpo/Domain - GPO5.json\"\n" +
-			"  content  = data.adlc_json_gpo_export.example.json\n" +
+			"  content  = data.adds_json_gpo_export.example.json\n" +
 			"}\n" +
 			"```\n\n" +
-			"Links, ACLs and WMI filters are not captured, matching `adlc_json_gpo`'s import scope.",
+			"Links, ACLs and WMI filters are not captured, matching `adds_json_gpo`'s import scope.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:            true,
@@ -74,13 +74,13 @@ func (d *jsonGPOExportDataSource) Configure(_ context.Context, req datasource.Co
 		return
 	}
 
-	adlcClient, ok := req.ProviderData.(*client.Client)
+	addsClient, ok := req.ProviderData.(*client.Client)
 	if !ok {
 		resp.Diagnostics.AddError("Unexpected provider data type", fmt.Sprintf("Expected *client.Client, got %T", req.ProviderData))
 		return
 	}
 
-	d.client = adlcClient
+	d.client = addsClient
 }
 
 func (d *jsonGPOExportDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {

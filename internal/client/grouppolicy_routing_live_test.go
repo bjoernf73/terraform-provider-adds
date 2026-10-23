@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bjoernf73/terraform-provider-adlc/internal/config"
+	"github.com/bjoernf73/terraform-provider-adds/internal/config"
 )
 
 // gpoVersionResult mirrors the nested Get-GPO shape that the Windows PowerShell Compatibility
@@ -34,21 +34,21 @@ $g = Get-GPO -All | Select-Object -First 1
 func liveClient(t *testing.T, gpoPath string) *Client {
 	t.Helper()
 
-	host := os.Getenv("ADLC_HOST")
+	host := os.Getenv("ADDS_HOST")
 	if host == "" {
-		t.Skip("ADLC_HOST not set")
+		t.Skip("ADDS_HOST not set")
 	}
 
 	port := 5985
-	if raw := os.Getenv("ADLC_PORT"); raw != "" {
+	if raw := os.Getenv("ADDS_PORT"); raw != "" {
 		parsed, err := strconv.Atoi(raw)
 		if err != nil {
-			t.Fatalf("invalid ADLC_PORT: %v", err)
+			t.Fatalf("invalid ADDS_PORT: %v", err)
 		}
 		port = parsed
 	}
 
-	auth := os.Getenv("ADLC_WINRM_AUTH")
+	auth := os.Getenv("ADDS_WINRM_AUTH")
 	if auth == "" {
 		auth = "ntlm"
 	}
@@ -57,15 +57,15 @@ func liveClient(t *testing.T, gpoPath string) *Client {
 		Host:               host,
 		Port:               port,
 		Transport:          "winrm",
-		Username:           os.Getenv("ADLC_USERNAME"),
-		Password:           os.Getenv("ADLC_PASSWORD"),
-		Insecure:           os.Getenv("ADLC_INSECURE") == "true",
+		Username:           os.Getenv("ADDS_USERNAME"),
+		Password:           os.Getenv("ADDS_PASSWORD"),
+		Insecure:           os.Getenv("ADDS_INSECURE") == "true",
 		PowerShellPath:     "pwsh",
 		GPOPowerShellPath:  gpoPath,
 		Timeout:            60 * time.Second,
-		WinRMUseTLS:        os.Getenv("ADLC_WINRM_USE_TLS") == "true",
+		WinRMUseTLS:        os.Getenv("ADDS_WINRM_USE_TLS") == "true",
 		WinRMAuth:          auth,
-		WinRMKerberosRealm: os.Getenv("ADLC_WINRM_KERBEROS_REALM"),
+		WinRMKerberosRealm: os.Getenv("ADDS_WINRM_KERBEROS_REALM"),
 	}
 
 	c, err := New(cfg)

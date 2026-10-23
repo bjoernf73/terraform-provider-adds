@@ -23,7 +23,7 @@ if ($null -eq $existing) {
         'msWMI-Name'         = $name
         'msWMI-Parm1'        = $descriptionValue
         'msWMI-Parm2'        = $parm2
-        'msWMI-Author'       = 'adlc'
+        'msWMI-Author'       = 'adds'
         'msWMI-ID'           = $cn
         instanceType         = 4
         showInAdvancedViewOnly = 'TRUE'

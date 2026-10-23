@@ -1,7 +1,7 @@
 terraform {
   required_providers {
-    adlc = {
-      source = "bjoernf73/adlc"
+    adds = {
+      source = "bjoernf73/adds"
     }
   }
 }

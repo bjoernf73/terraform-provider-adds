@@ -8,8 +8,8 @@ description: |-
 
 # Managing SYSVOL Files
 
-[`adlc_netlogon_files`](../resources/netlogon_files.md) deploys a local directory
-recursively below the domain's NETLOGON share. [`adlc_administrative_templates`](../resources/administrative_templates.md)
+[`adds_netlogon_files`](../resources/netlogon_files.md) deploys a local directory
+recursively below the domain's NETLOGON share. [`adds_administrative_templates`](../resources/administrative_templates.md)
 deploys a local directory recursively to the Central Store root:
 `SYSVOL/<domain>/Policies/PolicyDefinitions`.
 
@@ -35,7 +35,7 @@ Use `path` to select a relative destination under NETLOGON. The source directory
 have any nested layout, which is preserved on deployment:
 
 ```hcl
-resource "adlc_netlogon_files" "logon_scripts" {
+resource "adds_netlogon_files" "logon_scripts" {
   source_path = "${path.module}/netlogon"
   path        = "logon"
 }
@@ -51,7 +51,7 @@ relative destination attribute; organize vendor or language files within `source
 instead:
 
 ```hcl
-resource "adlc_administrative_templates" "central_store" {
+resource "adds_administrative_templates" "central_store" {
   source_path = "${path.module}/policy_definitions"
 }
 ```

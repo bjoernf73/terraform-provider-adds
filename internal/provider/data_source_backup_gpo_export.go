@@ -8,8 +8,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
-	"github.com/bjoernf73/terraform-provider-adlc/internal/ad"
-	"github.com/bjoernf73/terraform-provider-adlc/internal/client"
+	"github.com/bjoernf73/terraform-provider-adds/internal/ad"
+	"github.com/bjoernf73/terraform-provider-adds/internal/client"
 )
 
 var (
@@ -39,11 +39,11 @@ func (d *backupGPOExportDataSource) Metadata(_ context.Context, req datasource.M
 func (d *backupGPOExportDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Exports a live GPO as a native GPMC backup using `Backup-GPO`, regardless of whether the GPO " +
-			"was created manually, with `adlc_json_gpo`, or with `adlc_backup_gpo`. Returns every backup file as base64, " +
+			"was created manually, with `adds_json_gpo`, or with `adds_backup_gpo`. Returns every backup file as base64, " +
 			"including binary policy files. The provider creates a temporary backup on the remote host and removes it " +
 			"after reading the files; it does not write files on the machine running Terraform.\n\n" +
 			"Persist `files` with `local_sensitive_file` from the `hashicorp/local` provider using `content_base64`. " +
-			"The resulting `<path>/<name>/{backup_id}/...` folder can be used by `adlc_backup_gpo` with `path` pointing " +
+			"The resulting `<path>/<name>/{backup_id}/...` folder can be used by `adds_backup_gpo` with `path` pointing " +
 			"at its parent and `backup_name` set to `name`. Materialize the files in a separate export apply before " +
 			"configuring the import resource, which reads its local backup folder during planning.\n\n" +
 			"Every read creates a new snapshot with a new `backup_id` and backup timestamps, even if the policy settings " +
@@ -79,12 +79,12 @@ func (d *backupGPOExportDataSource) Configure(_ context.Context, req datasource.
 	if req.ProviderData == nil {
 		return
 	}
-	adlcClient, ok := req.ProviderData.(*client.Client)
+	addsClient, ok := req.ProviderData.(*client.Client)
 	if !ok {
 		resp.Diagnostics.AddError("Unexpected provider data type", fmt.Sprintf("Expected *client.Client, got %T", req.ProviderData))
 		return
 	}
-	d.client = adlcClient
+	d.client = addsClient
 }
 
 func (d *backupGPOExportDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {

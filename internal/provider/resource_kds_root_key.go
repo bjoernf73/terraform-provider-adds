@@ -12,8 +12,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
-	"github.com/bjoernf73/terraform-provider-adlc/internal/ad"
-	"github.com/bjoernf73/terraform-provider-adlc/internal/client"
+	"github.com/bjoernf73/terraform-provider-adds/internal/ad"
+	"github.com/bjoernf73/terraform-provider-adds/internal/client"
 )
 
 var (
@@ -49,7 +49,7 @@ func (r *kdsRootKeyResource) Schema(_ context.Context, _ resource.SchemaRequest,
 
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Ensures a Key Distribution Service (KDS) root key exists in the forest, creating one only when none is present. " +
-			"A KDS root key is the forest-wide prerequisite for group managed service accounts (`adlc_gmsa`).\n\n" +
+			"A KDS root key is the forest-wide prerequisite for group managed service accounts (`adds_gmsa`).\n\n" +
 			"Removing this resource does **not** delete the key: Active Directory offers no supported way to remove a KDS root key, " +
 			"and doing so would break every existing gMSA. Destroy only drops it from Terraform state.",
 		Attributes: map[string]schema.Attribute{
@@ -102,13 +102,13 @@ func (r *kdsRootKeyResource) Configure(_ context.Context, req resource.Configure
 		return
 	}
 
-	adlcClient, ok := req.ProviderData.(*client.Client)
+	addsClient, ok := req.ProviderData.(*client.Client)
 	if !ok {
 		resp.Diagnostics.AddError("Unexpected provider data type", fmt.Sprintf("Expected *client.Client, got %T", req.ProviderData))
 		return
 	}
 
-	r.client = adlcClient
+	r.client = addsClient
 }
 
 func (r *kdsRootKeyResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {

@@ -13,7 +13,7 @@ import (
 
 	"github.com/masterzen/winrm"
 
-	"github.com/bjoernf73/terraform-provider-adlc/internal/config"
+	"github.com/bjoernf73/terraform-provider-adds/internal/config"
 )
 
 // emptyStdinExitCode and emptyStdinMarker mirror the sentinel the PowerShell bootstrap emits
@@ -22,7 +22,7 @@ import (
 // transport -> powershell dependency, which would form a test import cycle.
 const (
 	emptyStdinExitCode = 97
-	emptyStdinMarker   = "ADLC_EMPTY_STDIN"
+	emptyStdinMarker   = "ADDS_EMPTY_STDIN"
 )
 
 type winrmRunner struct {
@@ -161,7 +161,7 @@ func writeKerberosConfig(realm, host string) (string, error) {
     }
 `, realm, host)
 
-	path := filepath.Join(os.TempDir(), fmt.Sprintf("adlc-krb5-%s.conf", strings.ToLower(realm)))
+	path := filepath.Join(os.TempDir(), fmt.Sprintf("adds-krb5-%s.conf", strings.ToLower(realm)))
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		return "", fmt.Errorf("winrm kerberos: writing krb5.conf: %w", err)
 	}

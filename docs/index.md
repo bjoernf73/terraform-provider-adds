@@ -1,13 +1,13 @@
 ---
-page_title: "Provider: adlc"
+page_title: "Provider: adds"
 description: |-
-  ADLC is an Active Directory Lifecycle provider that manages directory objects and
+  ADDS is an Active Directory Domain Services provider that manages directory objects and
   policy through PowerShell 7 on a remote Windows host over WinRM or SSH.
 ---
 
-# adlc Provider
+# adds Provider
 
-ADLC is an Active Directory Lifecycle provider that manages directory objects and policy through PowerShell 7 commands on remote Windows systems over WinRM or SSH.
+ADDS is an Active Directory Domain Services provider that manages directory objects and policy through PowerShell 7 commands on remote Windows systems over WinRM or SSH.
 
 ## Requirements
 
@@ -20,14 +20,14 @@ ADLC is an Active Directory Lifecycle provider that manages directory objects an
 ```terraform
 terraform {
   required_providers {
-    adlc = {
-      source = "bjoernf73/adlc"
+    adds = {
+      source = "bjoernf73/adds"
     }
   }
 }
 
 # WinRM with NTLM authentication.
-provider "adlc" {
+provider "adds" {
   transport       = "winrm"
   host            = "dc1.contoso.local"
   username        = "CONTOSO\\terraform"
@@ -37,7 +37,7 @@ provider "adlc" {
 }
 
 # SSH with password authentication.
-provider "adlc" {
+provider "adds" {
   alias           = "ssh"
   transport       = "ssh"
   host            = "dc1.contoso.local"
@@ -70,7 +70,7 @@ This provider does not retrieve credentials or SSH keys from secret stores such 
 ### Optional
 
 - `domain_controller` (String) Optional domain controller to pass to Active Directory cmdlets via `-Server`.
-- `gpo_powershell_path` (String) PowerShell executable for scripts that import the `GroupPolicy` module, including GPO imports, the `adlc_gpo` data source, JSON/backup exports, permissions, security filtering and WMI-filter assignment. Defaults to `powershell.exe`, where the module is native. Set this to `pwsh` to use the Windows PowerShell compatibility layer, which returns deserialized objects and can lose nested properties. LDAP-only GPO links and backup/JSON resource reads use `powershell_path` instead.
+- `gpo_powershell_path` (String) PowerShell executable for scripts that import the `GroupPolicy` module, including GPO imports, the `adds_gpo` data source, JSON/backup exports, permissions, security filtering and WMI-filter assignment. Defaults to `powershell.exe`, where the module is native. Set this to `pwsh` to use the Windows PowerShell compatibility layer, which returns deserialized objects and can lose nested properties. LDAP-only GPO links and backup/JSON resource reads use `powershell_path` instead.
 - `insecure` (Boolean) Skip certificate validation for WinRM TLS or host key validation for SSH.
 - `password` (String, Sensitive) Remote account password. Used by WinRM and optional for SSH.
 - `port` (Number) Remote port. Defaults to 5985 or 5986 for WinRM, and 22 for SSH.

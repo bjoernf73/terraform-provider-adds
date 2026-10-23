@@ -1,14 +1,14 @@
-# terraform-provider-adlc — repository instructions
+# terraform-provider-adds — repository instructions
 
 ## What this repository is
 
-A Terraform provider (`adlc`) that manages **Active Directory** objects by executing
+A Terraform provider (`adds`) that manages **Active Directory** objects by executing
 **PowerShell 7** on a remote Windows host over **WinRM** or **SSH**. There is no native
 LDAP client — every operation is a PowerShell script that emits JSON on stdout, which Go
 decodes into a typed struct.
 
-Module path: `github.com/bjoernf73/terraform-provider-adlc`
-Provider address: `registry.terraform.io/bjoernf73/adlc`
+Module path: `github.com/bjoernf73/terraform-provider-adds`
+Provider address: `registry.terraform.io/bjoernf73/adds`
 
 ## Non-negotiable rules
 
@@ -54,7 +54,7 @@ Data flow for any operation:
 `transport.Runner` (WinRM/SSH) stages the script on the host and runs it → JSON on stdout → struct.
 
 Each operation runs three remote commands: a small `-EncodedCommand` write bootstrap reads the
-script as **plain text** from **stdin** and writes it to `C:\Windows\Temp\adlc-<token>.ps1`; the
+script as **plain text** from **stdin** and writes it to `C:\Windows\Temp\adds-<token>.ps1`; the
 script is then run with `pwsh -File <path>`; the file is deleted afterwards (best effort). The body
 travels on stdin, not the command line, because WinRM shells run under `cmd.exe` whose 8191
 character limit the scripts would otherwise exceed — **never put the script on the command line**.

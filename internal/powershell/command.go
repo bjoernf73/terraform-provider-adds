@@ -22,7 +22,7 @@ const remoteTempDir = `C:\Windows\Temp`
 // it. Both must stay in sync with the literals in writeBootstrap.
 const (
 	EmptyStdinExitCode = 97
-	EmptyStdinMarker   = "ADLC_EMPTY_STDIN"
+	EmptyStdinMarker   = "ADDS_EMPTY_STDIN"
 )
 
 // NewScriptToken returns a random hex token used to name a staged script file so that repeated
@@ -38,7 +38,7 @@ func NewScriptToken() (string, error) {
 
 // RemoteScriptPath returns the absolute path of the staged script file for a token.
 func RemoteScriptPath(token string) string {
-	return remoteTempDir + `\adlc-` + token + `.ps1`
+	return remoteTempDir + `\adds-` + token + `.ps1`
 }
 
 // BuildWriteCommand returns the command line that stages a script on the target host. The

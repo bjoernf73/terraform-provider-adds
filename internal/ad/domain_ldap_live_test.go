@@ -24,7 +24,7 @@ $d = Get-ADDomain
 } | ConvertTo-Json -Compress`
 
 // TestDomainReadLDAPParity asserts the LDAP domain read returns the same values as the
-// ActiveDirectory module's Get-ADDomain. Host-gated: set ADLC_HOST (and the other ADLC_* vars)
+// ActiveDirectory module's Get-ADDomain. Host-gated: set ADDS_HOST (and the other ADDS_* vars)
 // to run it against a live domain controller.
 func TestDomainReadLDAPParity(t *testing.T) {
 	c := liveADClient(t)

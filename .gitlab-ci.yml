@@ -7,7 +7,7 @@ variables:
   GO_IMAGE: "golang:1.26"
   TF_IMAGE: "hashicorp/terraform:1.13"
   PROVIDER_NAMESPACE: "bjoernf73"
-  PROVIDER_TYPE: "adlc"
+  PROVIDER_TYPE: "adds"
   PROVIDER_VERSION: "0.0.0-ci"
   GOPATH: "$CI_PROJECT_DIR/.go"
   GOTOOLCHAIN: "local"
@@ -28,8 +28,8 @@ build:
   script:
     - test -z "$(gofmt -l main.go internal)" || { echo 'gofmt issues:'; gofmt -l main.go internal; exit 1; }
     - go vet ./...
-    - GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o dist/terraform-provider-adlc_v${PROVIDER_VERSION} .
-    - GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o dist/terraform-provider-adlc_v${PROVIDER_VERSION}.exe .
+    - GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o dist/terraform-provider-adds_v${PROVIDER_VERSION} .
+    - GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o dist/terraform-provider-adds_v${PROVIDER_VERSION}.exe .
   artifacts:
     expire_in: 1 week
     paths:
@@ -63,11 +63,11 @@ unit:
     TF_IN_AUTOMATION: "1"
     TF_INPUT: "0"
     TF_CLI_CONFIG_FILE: "$CI_PROJECT_DIR/.ci.tfrc"
-    TF_VAR_host: "$ADLC_HOST"
+    TF_VAR_host: "$ADDS_HOST"
   before_script:
     - MIRROR="$CI_PROJECT_DIR/.provider-mirror/registry.terraform.io/${PROVIDER_NAMESPACE}/${PROVIDER_TYPE}/${PROVIDER_VERSION}/linux_amd64"
     - mkdir -p "$MIRROR"
-    - install -m 0755 "dist/terraform-provider-adlc_v${PROVIDER_VERSION}" "$MIRROR/terraform-provider-adlc_v${PROVIDER_VERSION}"
+    - install -m 0755 "dist/terraform-provider-adds_v${PROVIDER_VERSION}" "$MIRROR/terraform-provider-adds_v${PROVIDER_VERSION}"
     - |
       cat > "$TF_CLI_CONFIG_FILE" <<EOF
       provider_installation {
@@ -131,7 +131,7 @@ unit:
       $type = $env:PROVIDER_TYPE
       $mirror = Join-Path $mirrorRoot "registry.terraform.io\$ns\$type\$($env:PROVIDER_VERSION)\windows_amd64"
       New-Item -ItemType Directory -Force -Path $mirror | Out-Null
-      $exe = "terraform-provider-adlc_v$($env:PROVIDER_VERSION).exe"
+      $exe = "terraform-provider-adds_v$($env:PROVIDER_VERSION).exe"
       Copy-Item "dist\$exe" (Join-Path $mirror $exe) -Force
       $mirrorFwd = $mirrorRoot -replace '\\','/'
       $tfrc = @(
@@ -151,15 +151,15 @@ e2e:winrm:
   extends: .e2e_template
   variables:
     TF_VAR_transport: "winrm"
-    TF_VAR_username: "$ADLC_USERNAME"
-    TF_VAR_password: "$ADLC_PASSWORD"
-    TF_VAR_ou_path: "TerraformCI/pipeline-$CI_PIPELINE_ID-winrm"
-    TF_VAR_group_name: "adlc-ci-$CI_PIPELINE_ID-winrm"
+    TF_VAR_username: "$ADDS_USERNAME"
+    TF_VAR_password: "$ADDS_PASSWORD"
+    TF_VAR_ou_path: "TerraformCI-ADDS/pipeline-$CI_PIPELINE_ID-winrm"
+    TF_VAR_group_name: "adds-ci-$CI_PIPELINE_ID-winrm"
   rules:
-    # Required CI/CD variables: ADLC_HOST, ADLC_USERNAME, ADLC_PASSWORD (masked).
+    # Required CI/CD variables: ADDS_HOST, ADDS_USERNAME, ADDS_PASSWORD (masked).
     # Optional overrides are set directly as TF_VAR_port / TF_VAR_winrm_auth /
     # TF_VAR_winrm_use_tls / TF_VAR_insecure CI/CD variables.
-    - if: '$ADLC_HOST == null || $ADLC_HOST == ""'
+    - if: '$ADDS_HOST == null || $ADDS_HOST == ""'
       when: never
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - when: manual
@@ -169,17 +169,17 @@ e2e:ssh:
   extends: .e2e_template
   variables:
     TF_VAR_transport: "ssh"
-    TF_VAR_username: "$ADLC_USERNAME"
-    TF_VAR_password: "$ADLC_PASSWORD"
-    TF_VAR_ou_path: "TerraformCI/pipeline-$CI_PIPELINE_ID-ssh"
-    TF_VAR_group_name: "adlc-ci-$CI_PIPELINE_ID-ssh"    # No known_hosts entry for the target, so host key verification is disabled here.
+    TF_VAR_username: "$ADDS_USERNAME"
+    TF_VAR_password: "$ADDS_PASSWORD"
+    TF_VAR_ou_path: "TerraformCI-ADDS/pipeline-$CI_PIPELINE_ID-ssh"
+    TF_VAR_group_name: "adds-ci-$CI_PIPELINE_ID-ssh"    # No known_hosts entry for the target, so host key verification is disabled here.
     # Set ssh_known_hosts_path or ssh_host_key to turn it back on.
     TF_VAR_insecure: "true"  
   rules:
-    # Requires ADLC_SSH_USERNAME and ADLC_SSH_PASSWORD (masked) in addition to ADLC_HOST.
-    - if: '$ADLC_HOST == null || $ADLC_HOST == ""'
+    # Requires ADDS_SSH_USERNAME and ADDS_SSH_PASSWORD (masked) in addition to ADDS_HOST.
+    - if: '$ADDS_HOST == null || $ADDS_HOST == ""'
       when: never
-    - if: '$ADLC_PASSWORD == null || $ADLC_PASSWORD == ""'
+    - if: '$ADDS_PASSWORD == null || $ADDS_PASSWORD == ""'
       when: never
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - when: manual
@@ -192,15 +192,15 @@ e2e:ssh:
 e2e:winrm-https:
   extends: .e2e_template
   variables:
-    TF_VAR_username: "$ADLC_USERNAME"
-    TF_VAR_password: "$ADLC_PASSWORD"
+    TF_VAR_username: "$ADDS_USERNAME"
+    TF_VAR_password: "$ADDS_PASSWORD"
   rules:
-    # Requires an HTTPS listener on 5986; opt in with ADLC_WINRM_HTTPS=true.
+    # Requires an HTTPS listener on 5986; opt in with ADDS_WINRM_HTTPS=true.
     # Certificate validation is on by default: set TF_VAR_insecure=true if the
     # listener uses a self-signed certificate.
-    - if: '$ADLC_HOST == null || $ADLC_HOST == ""'
+    - if: '$ADDS_HOST == null || $ADDS_HOST == ""'
       when: never
-    - if: '$ADLC_WINRM_HTTPS != "true"'
+    - if: '$ADDS_WINRM_HTTPS != "true"'
       when: never
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - when: manual
@@ -227,16 +227,16 @@ e2e:winrm-https:
 e2e:winrm-https2:
   extends: .e2e_windows_template
   variables:
-    TF_VAR_username: "$ADLC_USERNAME2"
-    TF_VAR_password: "$ADLC_PASSWORD2"
-    TF_VAR_host: "$ADLC_HOST2"
+    TF_VAR_username: "$ADDS_USERNAME2"
+    TF_VAR_password: "$ADDS_PASSWORD2"
+    TF_VAR_host: "$ADDS_HOST2"
   rules:
-    # Requires an HTTPS listener on 5986; opt in with ADLC_WINRM_HTTPS=true.
+    # Requires an HTTPS listener on 5986; opt in with ADDS_WINRM_HTTPS=true.
     # Certificate validation is on by default: set TF_VAR_insecure=true if the
     # listener uses a self-signed certificate.
-    - if: '$ADLC_HOST2 == null || $ADLC_HOST2 == ""'
+    - if: '$ADDS_HOST2 == null || $ADDS_HOST2 == ""'
       when: never
-    - if: '$ADLC_WINRM_HTTPS != "true"'
+    - if: '$ADDS_WINRM_HTTPS != "true"'
       when: never
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - when: manual

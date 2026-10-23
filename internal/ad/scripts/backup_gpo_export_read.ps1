@@ -12,7 +12,7 @@ catch {
     throw
 }
 
-$backupRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("adlc-backup-" + [guid]::NewGuid().ToString('N'))
+$backupRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("adds-backup-" + [guid]::NewGuid().ToString('N'))
 try {
     New-Item -Path $backupRoot -ItemType Directory -ErrorAction Stop | Out-Null
     $backup = Backup-GPO -Guid $gpo.Id -Path $backupRoot @serverParams -ErrorAction Stop

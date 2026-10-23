@@ -5,7 +5,7 @@ $domainDN = Get-DomainDN
 $guid = [string]$payload.guid
 $gpoDN = "CN={$guid},CN=Policies,CN=System,$domainDN"
 
-$entry = Get-ADLCEntry -DistinguishedName $gpoDN -Attributes @('displayName', 'versionNumber', 'flags') -Filter '(objectClass=groupPolicyContainer)'
+$entry = Get-ADDSEntry -DistinguishedName $gpoDN -Attributes @('displayName', 'versionNumber', 'flags') -Filter '(objectClass=groupPolicyContainer)'
 
 if ($null -eq $entry) {
     [pscustomobject]@{
@@ -22,12 +22,12 @@ if ($null -eq $entry) {
     return
 }
 
-$versionNumber = [int64](Get-ADLCString $entry 'versionNumber')
+$versionNumber = [int64](Get-ADDSString $entry 'versionNumber')
 $computerAdVersion = $versionNumber -band 0xFFFF
 $userAdVersion = ($versionNumber -shr 16) -band 0xFFFF
 
 # The flags attribute maps directly to the GpoStatus enum the GroupPolicy module reports.
-switch ([int](Get-ADLCString $entry 'flags')) {
+switch ([int](Get-ADDSString $entry 'flags')) {
     1 { $status = 'UserSettingsDisabled' }
     2 { $status = 'ComputerSettingsDisabled' }
     3 { $status = 'AllSettingsDisabled' }
@@ -37,7 +37,7 @@ switch ([int](Get-ADLCString $entry 'flags')) {
 [pscustomobject]@{
     exists              = $true
     guid                = $guid
-    name                = Get-ADLCString $entry 'displayName'
+    name                = Get-ADDSString $entry 'displayName'
     distinguished_name  = $gpoDN
     domain              = ConvertFrom-DNToDnsName $domainDN
     status              = $status

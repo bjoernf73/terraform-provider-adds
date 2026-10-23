@@ -16,8 +16,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
-	"github.com/bjoernf73/terraform-provider-adlc/internal/ad"
-	"github.com/bjoernf73/terraform-provider-adlc/internal/client"
+	"github.com/bjoernf73/terraform-provider-adds/internal/ad"
+	"github.com/bjoernf73/terraform-provider-adds/internal/client"
 )
 
 var (
@@ -69,9 +69,9 @@ func (r *backupGPOResource) Metadata(_ context.Context, req resource.MetadataReq
 func (r *backupGPOResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Imports a [GPMC backup GPO](https://learn.microsoft.com/en-us/powershell/module/grouppolicy/backup-gpo) " +
-			"into Active Directory via `Import-GPO`. This is one of two ways this provider manages GPOs: `adlc_backup_gpo` " +
-			"imports a folder produced by `Backup-GPO` (or the GPMC UI); `adlc_json_gpo` imports a JSON description instead. " +
-			"Use `adlc_backup_gpo` when you already have (or can export) a working GPO to replicate across domains or " +
+			"into Active Directory via `Import-GPO`. This is one of two ways this provider manages GPOs: `adds_backup_gpo` " +
+			"imports a folder produced by `Backup-GPO` (or the GPMC UI); `adds_json_gpo` imports a JSON description instead. " +
+			"Use `adds_backup_gpo` when you already have (or can export) a working GPO to replicate across domains or " +
 			"environments.\n\n" +
 			"The backup folder (`path/backup_name/`) is read from the machine running Terraform and uploaded to the target " +
 			"Windows host for every apply; the resource has no way to detect out-of-band changes to that folder between plans, " +
@@ -238,13 +238,13 @@ func (r *backupGPOResource) Configure(_ context.Context, req resource.ConfigureR
 		return
 	}
 
-	adlcClient, ok := req.ProviderData.(*client.Client)
+	addsClient, ok := req.ProviderData.(*client.Client)
 	if !ok {
 		resp.Diagnostics.AddError("Unexpected provider data type", fmt.Sprintf("Expected *client.Client, got %T", req.ProviderData))
 		return
 	}
 
-	r.client = adlcClient
+	r.client = addsClient
 }
 
 // ModifyPlan recomputes the local content fingerprint on every plan, so edits to the

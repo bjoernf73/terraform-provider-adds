@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Loads local env vars from .env.ps1 and runs the adlc acceptance tests.
+    Loads local env vars from .env.ps1 and runs the adds acceptance tests.
 
 .DESCRIPTION
     Convenience wrapper so you don't have to dot-source .env.ps1 by hand every
@@ -32,8 +32,8 @@ if (-not (Test-Path $envScript)) {
 
 . $envScript
 
-if (-not $env:ADLC_HOST) {
-    throw 'ADLC_HOST is empty. Set $Host_ in .env.ps1 to a reachable test domain controller.'
+if (-not $env:ADDS_HOST) {
+    throw 'ADDS_HOST is empty. Set $Host_ in .env.ps1 to a reachable test domain controller.'
 }
 
 $args = @('test', './internal/provider/...')

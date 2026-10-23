@@ -37,7 +37,7 @@ type gpoModuleVersion struct {
 }
 
 // TestBackupGPOReadLDAPParity asserts the LDAP GPO version read (versionNumber) matches
-// the GroupPolicy module's Get-GPO for the Default Domain Policy. Host-gated: set ADLC_HOST.
+// the GroupPolicy module's Get-GPO for the Default Domain Policy. Host-gated: set ADDS_HOST.
 func TestBackupGPOReadLDAPParity(t *testing.T) {
 	c := liveADClient(t)
 	ctx := context.Background()

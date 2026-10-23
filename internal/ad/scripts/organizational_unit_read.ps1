@@ -1,6 +1,6 @@
 $domainDN = Get-DomainDN
 
-$entry = Get-ADLCEntry -DistinguishedName ([string]$payload.distinguished_name) -Attributes @('description', 'name') -Filter '(objectClass=organizationalUnit)'
+$entry = Get-ADDSEntry -DistinguishedName ([string]$payload.distinguished_name) -Attributes @('description', 'name') -Filter '(objectClass=organizationalUnit)'
 
 if ($null -eq $entry) {
     [pscustomobject]@{
@@ -12,8 +12,8 @@ else {
     [pscustomobject]@{
         exists             = $true
         path               = Convert-DNToPath $dn $domainDN
-        description        = Get-ADLCString $entry 'description'
+        description        = Get-ADDSString $entry 'description'
         distinguished_name = $dn
-        name               = Get-ADLCString $entry 'name'
+        name               = Get-ADDSString $entry 'name'
     } | ConvertTo-Json -Compress
 }

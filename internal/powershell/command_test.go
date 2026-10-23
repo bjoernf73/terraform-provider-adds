@@ -79,7 +79,7 @@ func TestBuildCommandsRejectEmptyPath(t *testing.T) {
 
 func TestRemoteScriptPathIsUnderTemp(t *testing.T) {
 	path := RemoteScriptPath("abc123")
-	want := `C:\Windows\Temp\adlc-abc123.ps1`
+	want := `C:\Windows\Temp\adds-abc123.ps1`
 	if path != want {
 		t.Fatalf("RemoteScriptPath = %q, want %q", path, want)
 	}

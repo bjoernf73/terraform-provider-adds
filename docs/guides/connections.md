@@ -39,12 +39,12 @@ Basic sends the username and password as HTTP authentication credentials. Use HT
 on a trusted network; HTTPS is recommended otherwise.
 
 ```hcl
-provider "adlc" {
+provider "adds" {
   transport     = "winrm"
   host          = "dc1.contoso.local"
   winrm_auth    = "basic"
   winrm_use_tls = false
-  username      = "CONTOSO\\svc-adlc"
+  username      = "CONTOSO\\svc-adds"
   password      = var.password
 }
 ```
@@ -52,12 +52,12 @@ provider "adlc" {
 ### Basic over HTTPS
 
 ```hcl
-provider "adlc" {
+provider "adds" {
   transport     = "winrm"
   host          = "dc1.contoso.local"
   winrm_auth    = "basic"
   winrm_use_tls = true
-  username      = "CONTOSO\\svc-adlc"
+  username      = "CONTOSO\\svc-adds"
   password      = var.password
 }
 ```
@@ -69,12 +69,12 @@ appropriate only for isolated testing.
 ### NTLM over HTTP
 
 ```hcl
-provider "adlc" {
+provider "adds" {
   transport     = "winrm"
   host          = "dc1.contoso.local"
   winrm_auth    = "ntlm"
   winrm_use_tls = false
-  username      = "CONTOSO\\svc-adlc"
+  username      = "CONTOSO\\svc-adds"
   password      = var.password
 }
 ```
@@ -86,12 +86,12 @@ retries these automatically (the script never ran, so a retry is safe).
 ### NTLM over HTTPS
 
 ```hcl
-provider "adlc" {
+provider "adds" {
   transport     = "winrm"
   host          = "dc1.contoso.local"
   winrm_auth    = "ntlm"
   winrm_use_tls = true
-  username      = "CONTOSO\\svc-adlc"
+  username      = "CONTOSO\\svc-adds"
   password      = var.password
 }
 ```
@@ -104,13 +104,13 @@ with a `krb5.conf` file. If no config path is specified, the provider generates 
 configuration using the target host as the KDC.
 
 ```hcl
-provider "adlc" {
+provider "adds" {
   transport            = "winrm"
   host                 = "dc1.contoso.local"
   winrm_auth           = "kerberos"
   winrm_use_tls        = false
   winrm_kerberos_realm = "CONTOSO.LOCAL"
-  username             = "svc-adlc"
+  username             = "svc-adds"
   password             = var.password
 }
 ```
@@ -118,13 +118,13 @@ provider "adlc" {
 ### Kerberos over HTTPS
 
 ```hcl
-provider "adlc" {
+provider "adds" {
   transport            = "winrm"
   host                 = "dc1.contoso.local"
   winrm_auth           = "kerberos"
   winrm_use_tls        = true
   winrm_kerberos_realm = "CONTOSO.LOCAL"
-  username             = "svc-adlc"
+  username             = "svc-adds"
   password             = var.password
 }
 ```
@@ -136,8 +136,8 @@ Kerberos settings:
 - **`password`** — used with username for Kerberos authentication. To use an explicit
   credential cache instead, set `winrm_kerberos_ccache_path` to its path on the machine
   running Terraform. The provider does not discover the OS ticket cache automatically.
-- **`username`** — give it bare (`svc-adlc`). A NetBIOS or UPN form
-  (`CONTOSO\svc-adlc`, `svc-adlc@contoso.local`) also works; the provider strips the
+- **`username`** — give it bare (`svc-adds`). A NetBIOS or UPN form
+  (`CONTOSO\svc-adds`, `svc-adds@contoso.local`) also works; the provider strips the
   prefix/suffix, since the realm is supplied separately.
 
 What the provider does for you:
@@ -176,10 +176,10 @@ SSH account.
 ### SSH password authentication
 
 ```hcl
-provider "adlc" {
+provider "adds" {
   transport = "ssh"
   host      = "dc1.contoso.local"
-  username  = "svc-adlc"
+  username  = "svc-adds"
   password  = var.password
 }
 ```
@@ -190,10 +190,10 @@ Use Terraform's `file()` function to read the PEM file and `pathexpand()` to exp
 home-directory path:
 
 ```hcl
-provider "adlc" {
+provider "adds" {
   transport           = "ssh"
   host                = "dc1.contoso.local"
-  username            = "svc-adlc"
+  username            = "svc-adds"
   ssh_private_key_pem = file(pathexpand("~/.ssh/id_ed25519"))
 }
 ```
@@ -209,10 +209,10 @@ variable "ssh_private_key_pem" {
   sensitive = true
 }
 
-provider "adlc" {
+provider "adds" {
   transport           = "ssh"
   host                = "dc1.contoso.local"
-  username            = "svc-adlc"
+  username            = "svc-adds"
   ssh_private_key_pem = var.ssh_private_key_pem
 }
 ```
@@ -328,7 +328,7 @@ variables on the machine running Terraform:
 
 ```sh
 export TF_LOG=DEBUG
-export TF_LOG_PATH=./adlc.log
+export TF_LOG_PATH=./adds.log
 terraform apply
 ```
 

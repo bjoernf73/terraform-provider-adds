@@ -4,11 +4,11 @@ Short one-line summary of the release.
 
 ## Fixed
 
-- `adlc_<resource>` — what was broken and what now works.
+- `adds_<resource>` — what was broken and what now works.
 
 ## Added
 
-- `adlc_<resource>` / `<provider setting>` — what it does.
+- `adds_<resource>` / `<provider setting>` — what it does.
 
 ## Changed
 

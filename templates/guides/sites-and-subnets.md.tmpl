@@ -10,18 +10,18 @@ description: |-
 
 Active Directory sites represent network locations. A client matches its IP address to
 an Active Directory subnet, which identifies the site used for domain-controller and
-SYSVOL discovery. The usual Terraform shape is one `adlc_site` and one or more
-`adlc_subnet` resources assigned to it.
+SYSVOL discovery. The usual Terraform shape is one `adds_site` and one or more
+`adds_subnet` resources assigned to it.
 
 ```hcl
-resource "adlc_site" "headoffice" {
+resource "adds_site" "headoffice" {
   name        = "HeadOffice"
   description = "Primary office and data center"
 }
 
-resource "adlc_subnet" "headoffice_lan" {
+resource "adds_subnet" "headoffice_lan" {
   name     = "10.42.0.0/16"
-  site     = adlc_site.headoffice.name
+  site     = adds_site.headoffice.name
   location = "Oslo, Norway"
 }
 ```

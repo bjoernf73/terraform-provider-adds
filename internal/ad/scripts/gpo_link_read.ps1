@@ -1,7 +1,7 @@
 $domainDN = Get-DomainDN
 $targetDN = [string]$payload.target_dn
 
-$result = Get-ADLCGPOLinks -TargetDN $targetDN -DomainDN $domainDN
+$result = Get-ADDSGPOLinks -TargetDN $targetDN -DomainDN $domainDN
 if ($null -eq $result) {
     [pscustomobject]@{ exists = $false } | ConvertTo-Json -Compress
     return

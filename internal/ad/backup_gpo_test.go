@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bjoernf73/terraform-provider-adlc/internal/client"
+	"github.com/bjoernf73/terraform-provider-adds/internal/client"
 )
 
 func TestBuildMigrationTableXMLEmpty(t *testing.T) {
@@ -108,9 +108,9 @@ func TestLoadBackupGPOFilesMissing(t *testing.T) {
 }
 
 func TestBackupGPOExportLive(t *testing.T) {
-	name := os.Getenv("ADLC_BACKUP_GPO_EXPORT_NAME")
+	name := os.Getenv("ADDS_BACKUP_GPO_EXPORT_NAME")
 	if name == "" {
-		t.Skip("ADLC_BACKUP_GPO_EXPORT_NAME not set")
+		t.Skip("ADDS_BACKUP_GPO_EXPORT_NAME not set")
 	}
 	base := liveADClient(t)
 	for _, executable := range []string{"powershell.exe", "pwsh"} {
@@ -166,7 +166,7 @@ function Get-GPO {
     [CmdletBinding()]
     param([string]$Name, [string]$Server)
     if ($Name -ne 'Fixture' -or $Server -ne 'fixture-dc') { throw 'incorrect GPO lookup arguments' }
-    if ($env:ADLC_BACKUP_FIXTURE_MODE -eq 'missing') { throw 'GPO could not be found' }
+    if ($env:ADDS_BACKUP_FIXTURE_MODE -eq 'missing') { throw 'GPO could not be found' }
     [pscustomobject]@{ Id = [guid]'11111111-1111-1111-1111-111111111111' }
 }
 function Backup-GPO {
@@ -179,7 +179,7 @@ function Backup-GPO {
 	[System.IO.File]::WriteAllText((Join-Path $Path 'manifest.xml'), '<Manifest/>')
     [System.IO.File]::WriteAllText((Join-Path $snapshot 'Backup.xml'), '<Backup/>')
     [System.IO.File]::WriteAllBytes((Join-Path $snapshot 'Registry.pol'), [byte[]](0, 128, 255))
-    if ($env:ADLC_BACKUP_FIXTURE_MODE -eq 'failure') { throw 'fixture backup failed' }
+    if ($env:ADDS_BACKUP_FIXTURE_MODE -eq 'failure') { throw 'fixture backup failed' }
     [pscustomobject]@{ Id = [guid]'22222222-2222-2222-2222-222222222222' }
 }
 try {
@@ -212,7 +212,7 @@ $cleanedUp = ($null -eq $script:fixtureRoot) -or (-not (Test-Path -LiteralPath $
 					ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 					defer cancel()
 					command := exec.CommandContext(ctx, binary, "-NoProfile", "-NonInteractive", "-File", probe)
-					command.Env = append(os.Environ(), "ADLC_BACKUP_FIXTURE_MODE="+mode)
+					command.Env = append(os.Environ(), "ADDS_BACKUP_FIXTURE_MODE="+mode)
 					output, err := command.Output()
 					if err != nil {
 						if failure, ok := err.(*exec.ExitError); ok {

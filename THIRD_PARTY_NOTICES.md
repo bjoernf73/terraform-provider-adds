@@ -9,7 +9,7 @@ reproduced below, as required by the respective licenses.
 
 An adapted copy of Microsoft's **GPRegistryPolicyParser** is embedded at
 [`internal/ad/scripts/gpregistrypolicyparser.ps1`](internal/ad/scripts/gpregistrypolicyparser.ps1)
-and used by the `adlc_json_gpo` resource and the `adlc_json_gpo_export` data source to read and
+and used by the `adds_json_gpo` resource and the `adds_json_gpo_export` data source to read and
 write Group Policy `Registry.pol` files. It has been adapted to run as an embedded script (see
 the header comment in that file for the specific modifications); the parsing logic is unchanged.
 

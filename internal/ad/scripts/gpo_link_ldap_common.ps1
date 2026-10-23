@@ -11,7 +11,7 @@
 # = enforced. gPOptions bit 0 (value 1) on the target = block inheritance.
 
 # Extracts the lowercase GPO GUID from a "CN={GUID},CN=Policies,..." distinguished name.
-function Get-ADLCGPOGuidFromDN([string]$DN) {
+function Get-ADDSGPOGuidFromDN([string]$DN) {
     if ($DN -match 'CN=\{(?<guid>[0-9A-Fa-f-]{36})\}') {
         return $Matches['guid'].ToLower()
     }
@@ -20,14 +20,14 @@ function Get-ADLCGPOGuidFromDN([string]$DN) {
 
 # Reads the ordered links and block-inheritance flag for $TargetDN via LDAP. Returns $null when
 # the target object does not exist.
-function Get-ADLCGPOLinks([string]$TargetDN, [string]$DomainDN) {
-    $entry = Get-ADLCEntry -DistinguishedName $TargetDN -Attributes @('gPLink', 'gPOptions')
+function Get-ADDSGPOLinks([string]$TargetDN, [string]$DomainDN) {
+    $entry = Get-ADDSEntry -DistinguishedName $TargetDN -Attributes @('gPLink', 'gPOptions')
     if ($null -eq $entry) {
         return $null
     }
 
-    $gpLink = [string](Get-ADLCString $entry 'gPLink')
-    $gpOptions = [int](Get-ADLCString $entry 'gPOptions')
+    $gpLink = [string](Get-ADDSString $entry 'gPLink')
+    $gpOptions = [int](Get-ADDSString $entry 'gPOptions')
 
     # gPLink is a concatenation of "[LDAP://<dn>;<flags>]" entries, lowest precedence first.
     $parsed = @()
@@ -42,11 +42,11 @@ function Get-ADLCGPOLinks([string]$TargetDN, [string]$DomainDN) {
     $links = @()
     $order = 1
     foreach ($item in $parsed) {
-        $guid = Get-ADLCGPOGuidFromDN $item.DN
+        $guid = Get-ADDSGPOGuidFromDN $item.DN
         $name = $null
         if ($null -ne $guid) {
-            $gpoEntry = Get-ADLCEntry -DistinguishedName "CN={$guid},CN=Policies,CN=System,$DomainDN" -Attributes @('displayName') -Filter '(objectClass=groupPolicyContainer)'
-            $name = Get-ADLCString $gpoEntry 'displayName'
+            $gpoEntry = Get-ADDSEntry -DistinguishedName "CN={$guid},CN=Policies,CN=System,$DomainDN" -Attributes @('displayName') -Filter '(objectClass=groupPolicyContainer)'
+            $name = Get-ADDSString $gpoEntry 'displayName'
         }
         $links += [pscustomobject]@{
             gpo_guid = $guid
@@ -67,13 +67,13 @@ function Get-ADLCGPOLinks([string]$TargetDN, [string]$DomainDN) {
 }
 
 # Resolves a GPO GUID or display name to its canonical distinguished name and lowercase GUID.
-function Resolve-ADLCGPOLink([string]$Identity, [string]$DomainDN) {
+function Resolve-ADDSGPOLink([string]$Identity, [string]$DomainDN) {
     $policiesDN = "CN=Policies,CN=System,$DomainDN"
     $trimmed = ([string]$Identity).Trim()
     $guidValue = [guid]::Empty
     if ([guid]::TryParse($trimmed.Trim('{', '}'), [ref]$guidValue)) {
         $guid = $guidValue.ToString()
-        $entry = Get-ADLCEntry -DistinguishedName "CN={$guid},CN=Policies,CN=System,$DomainDN" -Attributes @('cn') -Filter '(objectClass=groupPolicyContainer)'
+        $entry = Get-ADDSEntry -DistinguishedName "CN={$guid},CN=Policies,CN=System,$DomainDN" -Attributes @('cn') -Filter '(objectClass=groupPolicyContainer)'
         if ($null -eq $entry) {
             throw "GPO with GUID '$guid' was not found"
         }
@@ -81,7 +81,7 @@ function Resolve-ADLCGPOLink([string]$Identity, [string]$DomainDN) {
     }
 
     $filter = "(&(objectClass=groupPolicyContainer)(displayName=$(ConvertTo-LDAPFilterValue $trimmed)))"
-    $candidates = @(Search-ADLCEntries -BaseDN $policiesDN -Filter $filter -Scope ([System.DirectoryServices.Protocols.SearchScope]::OneLevel) -Attributes @('cn'))
+    $candidates = @(Search-ADDSEntries -BaseDN $policiesDN -Filter $filter -Scope ([System.DirectoryServices.Protocols.SearchScope]::OneLevel) -Attributes @('cn'))
     if ($candidates.Count -eq 0) {
         throw "GPO named '$trimmed' was not found"
     }
@@ -89,12 +89,12 @@ function Resolve-ADLCGPOLink([string]$Identity, [string]$DomainDN) {
         throw "multiple GPOs named '$trimmed' were found; link by GUID instead"
     }
     $dn = [string]$candidates[0].DistinguishedName
-    return [pscustomobject]@{ Guid = (Get-ADLCGPOGuidFromDN $dn); DN = $dn }
+    return [pscustomobject]@{ Guid = (Get-ADDSGPOGuidFromDN $dn); DN = $dn }
 }
 
 # Builds a gPLink attribute string from desired links in precedence order (first = highest).
 # The highest-precedence link must be last, so the list is emitted in reverse.
-function ConvertTo-ADLCGPLinkString($Entries) {
+function ConvertTo-ADDSGPLinkString($Entries) {
     $ordered = @($Entries)
     [array]::Reverse($ordered)
     $builder = New-Object System.Text.StringBuilder

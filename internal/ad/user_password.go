@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/bjoernf73/terraform-provider-adlc/internal/client"
+	"github.com/bjoernf73/terraform-provider-adds/internal/client"
 )
 
 const (
@@ -12,7 +12,7 @@ const (
 	userPasswordRead = "user_password_read.ps1"
 )
 
-// UserPasswordTarget identifies the user a adlc_user_password resource applies to.
+// UserPasswordTarget identifies the user a adds_user_password resource applies to.
 // The password itself is never read back: AD has no attribute that exposes it, so the
 // value in Terraform state is authoritative and is never compared against the live
 // account. PwdLastSet is a timestamp, not the password, and is populated purely so

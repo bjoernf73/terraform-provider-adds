@@ -2,7 +2,7 @@
 page_title: "Group managed service accounts"
 subcategory: "Guides"
 description: |-
-  How adlc_gmsa manages Active Directory group managed service accounts, including the
+  How adds_gmsa manages Active Directory group managed service accounts, including the
   sAMAccountName rule, password retrieval, delegation and Kerberos settings.
 ---
 
@@ -11,16 +11,16 @@ description: |-
 A group managed service account (gMSA) is a directory principal whose password is generated
 and rotated automatically by the domain's Key Distribution Service (KDS) rather than by an
 administrator. Multiple hosts can share one gMSA, and each retrieves the current password on
-demand. `adlc_gmsa` manages the account object and every setting that governs who may use it.
+demand. `adds_gmsa` manages the account object and every setting that governs who may use it.
 
 ```hcl
-resource "adlc_gmsa" "websvc" {
+resource "adds_gmsa" "websvc" {
   name          = "websvc-gmsa"
   dns_host_name = "websvc.contoso.local"
   path          = "Managed Service Accounts"
 
   principals_allowed_to_retrieve_managed_password = [
-    adlc_group.web_servers.sid,
+    adds_group.web_servers.sid,
   ]
 
   service_principal_names = ["HTTP/websvc.contoso.local"]
@@ -28,11 +28,11 @@ resource "adlc_gmsa" "websvc" {
 ```
 
 ~> A **KDS root key** must exist in the forest before any gMSA can be created. Manage it with
-the [`adlc_kds_root_key`](../resources/kds_root_key) resource, which creates one only when
+the [`adds_kds_root_key`](../resources/kds_root_key) resource, which creates one only when
 none is present:
 
 ```hcl
-resource "adlc_kds_root_key" "root" {
+resource "adds_kds_root_key" "root" {
   # Backdate the effective time by 10 hours so gMSAs work at once. Safe in a single-DC
   # forest; in production, leave false and wait for replication.
   effective_immediately = true
@@ -42,9 +42,9 @@ resource "adlc_kds_root_key" "root" {
   force_replication = true
 }
 
-resource "adlc_gmsa" "websvc" {
+resource "adds_gmsa" "websvc" {
   # ...
-  depends_on = [adlc_kds_root_key.root]
+  depends_on = [adds_kds_root_key.root]
 }
 ```
 
@@ -61,7 +61,7 @@ Active Directory stores a service account's pre-Windows 2000 logon name with a t
 and the whole value is capped at 20 characters. A gMSA's `sam_account_name` is therefore
 limited to **19 characters** before the `$` that AD appends automatically.
 
-`adlc_gmsa` accepts the name with or without the `$` and treats both spellings as the same
+`adds_gmsa` accepts the name with or without the `$` and treats both spellings as the same
 account:
 
 ```hcl
@@ -81,7 +81,7 @@ password. That set is `principals_allowed_to_retrieve_managed_password`, and it 
 
 ```hcl
 principals_allowed_to_retrieve_managed_password = [
-  adlc_group.web_servers.sid,   # a group is easiest to maintain
+  adds_group.web_servers.sid,   # a group is easiest to maintain
   "SQL01$",                      # or individual computer accounts
 ]
 ```
@@ -138,5 +138,5 @@ the provider lifts them automatically when it needs to move, rename or destroy t
 Import by `objectGUID`:
 
 ```shell
-terraform import adlc_gmsa.websvc "b3f2b9a0-1234-4a85-a7a3-9bcbb6a41d02"
+terraform import adds_gmsa.websvc "b3f2b9a0-1234-4a85-a7a3-9bcbb6a41d02"
 ```

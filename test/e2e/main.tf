@@ -2,14 +2,14 @@ terraform {
   required_version = ">= 1.6.0"
 
   required_providers {
-    adlc = {
-      source  = "bjoernf73/adlc"
+    adds = {
+      source  = "bjoernf73/adds"
       version = "0.0.0-ci"
     }
   }
 }
 
-provider "adlc" {
+provider "adds" {
   transport            = var.transport
   host                 = var.host
   port                 = var.port
@@ -23,59 +23,59 @@ provider "adlc" {
   timeout_seconds      = var.timeout_seconds
 }
 
-data "adlc_domain" "current" {}
+data "adds_domain" "current" {}
 
-resource "adlc_organizational_unit" "smoke" {
+resource "adds_organizational_unit" "smoke" {
   path           = var.ou_path
   description    = var.ou_description
   delete_subtree = true
 }
 
-resource "adlc_group" "smoke" {
+resource "adds_group" "smoke" {
   name         = var.group_name
-  path         = adlc_organizational_unit.smoke.path
+  path         = adds_organizational_unit.smoke.path
   description  = var.ou_description
   display_name = "${var.group_name} (CI)"
-  info         = "Created by the terraform-provider-adlc pipeline."
+  info         = "Created by the terraform-provider-adds pipeline."
   managed_by   = "Administrator"
   category     = "Security"
   scope        = var.group_scope
 }
 
 output "id" {
-  value = adlc_organizational_unit.smoke.id
+  value = adds_organizational_unit.smoke.id
 }
 
 output "distinguished_name" {
-  value = adlc_organizational_unit.smoke.distinguished_name
+  value = adds_organizational_unit.smoke.distinguished_name
 }
 
 output "name" {
-  value = adlc_organizational_unit.smoke.name
+  value = adds_organizational_unit.smoke.name
 }
 
 output "group_id" {
-  value = adlc_group.smoke.id
+  value = adds_group.smoke.id
 }
 
 output "group_distinguished_name" {
-  value = adlc_group.smoke.distinguished_name
+  value = adds_group.smoke.distinguished_name
 }
 
 output "group_sid" {
-  value = adlc_group.smoke.sid
+  value = adds_group.smoke.sid
 }
 
 output "group_managed_by_dn" {
-  value = adlc_group.smoke.managed_by_dn
+  value = adds_group.smoke.managed_by_dn
 }
 
 # Delegates computer management on the OU to the group stored inside it, which is the
 # dependency shape that a nested acl attribute could not express without a cycle.
 # Constructor 6: object_type + inheritance + inherited_object_type.
-resource "adlc_access_rule" "smoke" {
-  target                = adlc_organizational_unit.smoke.distinguished_name
-  trustee               = adlc_group.smoke.sid
+resource "adds_access_rule" "smoke" {
+  target                = adds_organizational_unit.smoke.distinguished_name
+  trustee               = adds_group.smoke.sid
   rights                = ["CreateChild", "DeleteChild"]
   access                = "Allow"
   object_type           = "computer"
@@ -84,45 +84,45 @@ resource "adlc_access_rule" "smoke" {
 }
 
 output "access_rule_id" {
-  value = adlc_access_rule.smoke.id
+  value = adds_access_rule.smoke.id
 }
 
 output "access_rule_trustee_sid" {
-  value = adlc_access_rule.smoke.trustee_sid
+  value = adds_access_rule.smoke.trustee_sid
 }
 
 # A second group, nested into the first, exercises group membership.
-resource "adlc_group" "smoke_member" {
+resource "adds_group" "smoke_member" {
   name  = "${var.group_name}-member"
-  path  = adlc_organizational_unit.smoke.path
+  path  = adds_organizational_unit.smoke.path
   scope = "Global"
 }
 
-resource "adlc_group_member" "smoke" {
-  group  = adlc_group.smoke.id
-  member = adlc_group.smoke_member.id
+resource "adds_group_member" "smoke" {
+  group  = adds_group.smoke.id
+  member = adds_group.smoke_member.id
 }
 
 output "group_member_id" {
-  value = adlc_group_member.smoke.id
+  value = adds_group_member.smoke.id
 }
 
 # Security principal referenced by the "Domain - GPO2" backup's migration table (see
-# adlc_backup_gpo.domain_gpo2 below); its restricted-groups setting resolves this by
+# adds_backup_gpo.domain_gpo2 below); its restricted-groups setting resolves this by
 # name in the target domain. Its name is a fixed literal (it must match the migration
 # table), so only one transport job creates it - ssh and winrm run in parallel within
 # the same pipeline, and sAMAccountName uniqueness is domain-wide, not per-OU.
-resource "adlc_group" "right_adm_builtingroup_remotedesktopusers" {
+resource "adds_group" "right_adm_builtingroup_remotedesktopusers" {
   count = var.transport == "ssh" ? 1 : 0
 
   name     = "Right-ADM-BuiltinGroup-RemoteDesktopUsers"
-  path     = adlc_organizational_unit.smoke.path
+  path     = adds_organizational_unit.smoke.path
   category = "Security"
   scope    = "Global"
 }
 
 output "right_adm_builtingroup_remotedesktopusers_sid" {
-  value = try(adlc_group.right_adm_builtingroup_remotedesktopusers[0].sid, null)
+  value = try(adds_group.right_adm_builtingroup_remotedesktopusers[0].sid, null)
 }
 
 # GPO display names aren't namespaced per job like the OU/group/user fixtures above, so
@@ -132,7 +132,7 @@ output "right_adm_builtingroup_remotedesktopusers_sid" {
 # Imported from a real GPMC backup (test/e2e/backup_gpo/Domain - GPO2); the migration
 # table mixes same_as_source (resolve fresh by name) with an explicit destination built
 # from the target domain, for the one entry we want redirected rather than re-resolved.
-resource "adlc_backup_gpo" "domain_gpo2" {
+resource "adds_backup_gpo" "domain_gpo2" {
   count = var.transport == "ssh" ? 1 : 0
 
   backup_name = "Domain - GPO2"
@@ -144,17 +144,17 @@ resource "adlc_backup_gpo" "domain_gpo2" {
     {
       type        = "LocalGroup"
       source      = "Right-ADM-BuiltinGroup-RemoteDesktopUsers@utv.local"
-      destination = "Right-ADM-BuiltinGroup-RemoteDesktopUsers@${data.adlc_domain.current.dns_root}"
+      destination = "Right-ADM-BuiltinGroup-RemoteDesktopUsers@${data.adds_domain.current.dns_root}"
     },
     { type = "UniversalGroup", source = "Enterprise Admins@utv.local", same_as_source = true },
     { type = "GlobalGroup", source = "Domain Admins@utv.local", same_as_source = true },
   ]
 
-  depends_on = [adlc_group.right_adm_builtingroup_remotedesktopusers]
+  depends_on = [adds_group.right_adm_builtingroup_remotedesktopusers]
 }
 
 # Imported as-is: no migration table for "Domain - GPO3".
-resource "adlc_backup_gpo" "domain_gpo3" {
+resource "adds_backup_gpo" "domain_gpo3" {
   count = var.transport == "ssh" ? 1 : 0
 
   backup_name = "Domain - GPO3"
@@ -162,16 +162,16 @@ resource "adlc_backup_gpo" "domain_gpo3" {
   target_name = "Domain - GPO3"
 }
 
-data "adlc_json_gpo_export" "domain_gpo3" {
+data "adds_json_gpo_export" "domain_gpo3" {
   count = var.transport == "ssh" ? 1 : 0
 
-  name = adlc_backup_gpo.domain_gpo3[0].target_name
+  name = adds_backup_gpo.domain_gpo3[0].target_name
 
   lifecycle {
     postcondition {
       condition = (
-        lower(self.id) == lower(adlc_backup_gpo.domain_gpo3[0].id) &&
-        jsondecode(self.json).Name == adlc_backup_gpo.domain_gpo3[0].target_name
+        lower(self.id) == lower(adds_backup_gpo.domain_gpo3[0].id) &&
+        jsondecode(self.json).Name == adds_backup_gpo.domain_gpo3[0].target_name
       )
       error_message = "GPO export must identify the imported Domain - GPO3 policy."
     }
@@ -197,14 +197,14 @@ data "adlc_json_gpo_export" "domain_gpo3" {
   }
 }
 
-data "adlc_backup_gpo_export" "domain_gpo3" {
+data "adds_backup_gpo_export" "domain_gpo3" {
   count = var.transport == "ssh" ? 1 : 0
 
-  name = adlc_backup_gpo.domain_gpo3[0].target_name
+  name = adds_backup_gpo.domain_gpo3[0].target_name
 
   lifecycle {
     postcondition {
-      condition     = lower(self.id) == lower(adlc_backup_gpo.domain_gpo3[0].id)
+      condition     = lower(self.id) == lower(adds_backup_gpo.domain_gpo3[0].id)
       error_message = "Backup export must identify the imported Domain - GPO3 policy."
     }
 
@@ -223,19 +223,19 @@ data "adlc_backup_gpo_export" "domain_gpo3" {
 
 # Links the freshly imported GPO onto the smoke OU, exercising the create path (New-GPLink).
 # ssh-gated to match the GPO imports it references.
-resource "adlc_gpo_links" "smoke" {
+resource "adds_gpo_links" "smoke" {
   count = var.transport == "ssh" ? 1 : 0
 
-  target = adlc_organizational_unit.smoke.path
+  target = adds_organizational_unit.smoke.path
   links = [
     {
-      gpo = adlc_backup_gpo.domain_gpo3[0].id
+      gpo = adds_backup_gpo.domain_gpo3[0].id
     },
   ]
 }
 
 output "gpo_links_id" {
-  value = try(adlc_gpo_links.smoke[0].id, null)
+  value = try(adds_gpo_links.smoke[0].id, null)
 }
 
 # Replication site and subnets (forest-wide Configuration partition). The parallel
@@ -244,132 +244,132 @@ output "gpo_links_id" {
 # therefore derived from the pipeline id embedded in group_name plus a per-transport
 # offset, kept inside 172.16.0.0/16 and below the showcase's fixed .250-.252 block.
 locals {
-  e2e_pipeline_id = try(tonumber(regex("adlc-ci-(\\d+)-", var.group_name)[0]), 0)
+  e2e_pipeline_id = try(tonumber(regex("adds-ci-(\\d+)-", var.group_name)[0]), 0)
   e2e_subnet_base = (local.e2e_pipeline_id % 40) * 6 + (var.transport == "ssh" ? 3 : 0)
 }
 
-resource "adlc_site" "smoke" {
+resource "adds_site" "smoke" {
   name        = "${var.group_name}-site"
   description = var.ou_description
 }
 
 # Single subnet on the smoke site (single-item read path).
-resource "adlc_subnet" "smoke" {
+resource "adds_subnet" "smoke" {
   name        = "172.16.${local.e2e_subnet_base}.0/24"
-  site        = adlc_site.smoke.name
+  site        = adds_site.smoke.name
   description = var.ou_description
   location    = "CI/${var.transport}"
 }
 
 # Two more subnets so the single-vs-multiple read path is exercised on the same site.
-resource "adlc_subnet" "smoke_extra" {
+resource "adds_subnet" "smoke_extra" {
   for_each = toset([
     "172.16.${local.e2e_subnet_base + 1}.0/24",
     "172.16.${local.e2e_subnet_base + 2}.0/24",
   ])
 
   name = each.value
-  site = adlc_site.smoke.name
+  site = adds_site.smoke.name
 }
 
 output "site_id" {
-  value = adlc_site.smoke.id
+  value = adds_site.smoke.id
 }
 
 output "site_distinguished_name" {
-  value = adlc_site.smoke.distinguished_name
+  value = adds_site.smoke.distinguished_name
 }
 
 output "subnet_ids" {
-  value = concat([adlc_subnet.smoke.id], [for s in adlc_subnet.smoke_extra : s.id])
+  value = concat([adds_subnet.smoke.id], [for s in adds_subnet.smoke_extra : s.id])
 }
 
 output "backup_gpos" {
   value = {
-    domain_gpo2 = try({ id = adlc_backup_gpo.domain_gpo2[0].id, dn = adlc_backup_gpo.domain_gpo2[0].distinguished_name }, null)
-    domain_gpo3 = try({ id = adlc_backup_gpo.domain_gpo3[0].id, dn = adlc_backup_gpo.domain_gpo3[0].distinguished_name }, null)
+    domain_gpo2 = try({ id = adds_backup_gpo.domain_gpo2[0].id, dn = adds_backup_gpo.domain_gpo2[0].distinguished_name }, null)
+    domain_gpo3 = try({ id = adds_backup_gpo.domain_gpo3[0].id, dn = adds_backup_gpo.domain_gpo3[0].distinguished_name }, null)
   }
 }
 
 output "domain_dn" {
-  value = data.adlc_domain.current.distinguished_name
+  value = data.adds_domain.current.distinguished_name
 }
 
 output "domain_netbios_name" {
-  value = data.adlc_domain.current.netbios_name
+  value = data.adds_domain.current.netbios_name
 }
 
 # A relative DN target: the well-known Computers container is a CN, not an OU.
 # Constructor 5: object_type + inheritance, no inherited_object_type.
-resource "adlc_access_rule" "smoke_container" {
+resource "adds_access_rule" "smoke_container" {
   target      = "CN=Computers"
-  trustee     = adlc_group.smoke.sid
+  trustee     = adds_group.smoke.sid
   rights      = ["ReadProperty"]
   object_type = "All"
   inheritance = "Descendents"
 }
 
 output "access_rule_container_target_dn" {
-  value = adlc_access_rule.smoke_container.target_dn
+  value = adds_access_rule.smoke_container.target_dn
 }
 
 # The remaining four constructors from the access rules guide, exercised against the
-# second group so every ACE key stays unique alongside adlc_access_rule.smoke above.
+# second group so every ACE key stays unique alongside adds_access_rule.smoke above.
 
 # Constructor 1: rights on the object itself. Uses a different trustee than constructor 2:
 # the same trustee + same rights with inheritance=All would make this ACE a strict subset
 # of that one (All already covers the object itself, not just descendants), and Windows
 # canonicalizes the redundant narrower ACE away.
-resource "adlc_access_rule" "constructor1_object_only" {
-  target  = adlc_organizational_unit.smoke.distinguished_name
-  trustee = adlc_group.smoke.sid
+resource "adds_access_rule" "constructor1_object_only" {
+  target  = adds_organizational_unit.smoke.distinguished_name
+  trustee = adds_group.smoke.sid
   rights  = ["GenericRead"]
 }
 
 # Constructor 2: rights inherited by every descendant.
-resource "adlc_access_rule" "constructor2_all_descendants" {
-  target      = adlc_organizational_unit.smoke.distinguished_name
-  trustee     = adlc_group.smoke_member.sid
+resource "adds_access_rule" "constructor2_all_descendants" {
+  target      = adds_organizational_unit.smoke.distinguished_name
+  trustee     = adds_group.smoke_member.sid
   rights      = ["GenericRead"]
   inheritance = "All"
 }
 
 # Constructor 3: rights inherited by one class of descendant.
-resource "adlc_access_rule" "constructor3_one_class_descendants" {
-  target                = adlc_organizational_unit.smoke.distinguished_name
-  trustee               = adlc_group.smoke_member.sid
+resource "adds_access_rule" "constructor3_one_class_descendants" {
+  target                = adds_organizational_unit.smoke.distinguished_name
+  trustee               = adds_group.smoke_member.sid
   rights                = ["GenericRead"]
   inheritance           = "Descendents"
   inherited_object_type = "user"
 }
 
 # Constructor 4: rights on one class of child object, this object only.
-resource "adlc_access_rule" "constructor4_one_class_here" {
-  target      = adlc_organizational_unit.smoke.distinguished_name
-  trustee     = adlc_group.smoke_member.sid
+resource "adds_access_rule" "constructor4_one_class_here" {
+  target      = adds_organizational_unit.smoke.distinguished_name
+  trustee     = adds_group.smoke_member.sid
   rights      = ["CreateChild", "DeleteChild"]
   object_type = "computer"
 }
 
 output "access_rule_constructors" {
   value = {
-    "1_object_only"           = adlc_access_rule.constructor1_object_only.id
-    "2_all_descendants"       = adlc_access_rule.constructor2_all_descendants.id
-    "3_one_class_descendants" = adlc_access_rule.constructor3_one_class_descendants.id
-    "4_one_class_here"        = adlc_access_rule.constructor4_one_class_here.id
-    "5_one_class_propagated"  = adlc_access_rule.smoke_container.id
-    "6_extended_right"        = adlc_access_rule.smoke.id
+    "1_object_only"           = adds_access_rule.constructor1_object_only.id
+    "2_all_descendants"       = adds_access_rule.constructor2_all_descendants.id
+    "3_one_class_descendants" = adds_access_rule.constructor3_one_class_descendants.id
+    "4_one_class_here"        = adds_access_rule.constructor4_one_class_here.id
+    "5_one_class_propagated"  = adds_access_rule.smoke_container.id
+    "6_extended_right"        = adds_access_rule.smoke.id
   }
 }
 
-resource "adlc_user" "smoke" {
+resource "adds_user" "smoke" {
   name = "${var.group_name}-user"
   # sAMAccountName has a hard 20 character limit; group_name already varies in length
   # by transport name and pipeline id, so truncate rather than risk "not a properly
   # formed account name" on a long combination.
   sam_account_name    = substr("${var.group_name}-usr", 0, 20)
-  user_principal_name = "${substr("${var.group_name}-usr", 0, 20)}@${data.adlc_domain.current.dns_root}"
-  path                = adlc_organizational_unit.smoke.path
+  user_principal_name = "${substr("${var.group_name}-usr", 0, 20)}@${data.adds_domain.current.dns_root}"
+  path                = adds_organizational_unit.smoke.path
   description         = var.ou_description
   display_name        = "${var.group_name} (CI)"
   given_name          = "CI"
@@ -380,27 +380,27 @@ resource "adlc_user" "smoke" {
 }
 
 output "user_id" {
-  value = adlc_user.smoke.id
+  value = adds_user.smoke.id
 }
 
 output "user_distinguished_name" {
-  value = adlc_user.smoke.distinguished_name
+  value = adds_user.smoke.distinguished_name
 }
 
 output "user_manager_dn" {
-  value = adlc_user.smoke.manager_dn
+  value = adds_user.smoke.manager_dn
 }
 
-resource "adlc_user_password" "smoke" {
-  user   = adlc_user.smoke.id
+resource "adds_user_password" "smoke" {
+  user   = adds_user.smoke.id
   length = 20
 }
 
 output "user_password_id" {
-  value = adlc_user_password.smoke.id
+  value = adds_user_password.smoke.id
 }
 
 output "user_password_length" {
-  value     = length(adlc_user_password.smoke.password)
+  value     = length(adds_user_password.smoke.password)
   sensitive = true
 }

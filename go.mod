@@ -1,4 +1,4 @@
-module github.com/bjoernf73/terraform-provider-adlc
+module github.com/bjoernf73/terraform-provider-adds
 
 go 1.26.0
 

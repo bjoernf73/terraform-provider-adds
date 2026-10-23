@@ -2,7 +2,7 @@
 page_title: "Group scope conversions"
 subcategory: "Guides"
 description: |-
-  What happens when an adlc_group's scope changes between Global, DomainLocal and
+  What happens when an adds_group's scope changes between Global, DomainLocal and
   Universal, which conversions Active Directory allows, and the nesting rules that can
   still block a change.
 ---
@@ -18,7 +18,7 @@ can contain:
 | `DomainLocal` | Accounts, `Global` and `Universal` groups from **any domain**, plus `DomainLocal` groups from the same domain | **Only** in the group's own domain |
 | `Universal` | Accounts, `Global` and `Universal` groups from **any domain** in the forest | Anywhere in the forest |
 
-Changing `scope` on an `adlc_group` is reconciled **in place** — the group keeps its
+Changing `scope` on an `adds_group` is reconciled **in place** — the group keeps its
 `objectGUID`, SID, membership and access control entries. Terraform never replaces the group
 to change its scope.
 
@@ -49,7 +49,7 @@ DomainLocal ->  Universal  ->  Global
 This is automatic. A plan that changes
 
 ```hcl
-resource "adlc_group" "readers" {
+resource "adds_group" "readers" {
   name  = "Readers"
   path  = "Contoso/Groups"
   scope = "DomainLocal" # was "Global"
@@ -95,10 +95,10 @@ The preflight is best-effort and uses Active Directory's documented rules; the a
 enforces them, so a conversion that slips past the preflight is still rejected by the
 directory. If a conversion is blocked, resolve the offending membership — remove the
 incompatible member or leave the incompatible parent group (for example with
-`adlc_group_member`) — and plan again.
+`adds_group_member`) — and plan again.
 
 ## Related
 
-- [`adlc_group` resource](../resources/group.md)
-- [`adlc_group_member` resource](../resources/group_member.md) — manage the memberships that
+- [`adds_group` resource](../resources/group.md)
+- [`adds_group_member` resource](../resources/group_member.md) — manage the memberships that
   the nesting rules above depend on

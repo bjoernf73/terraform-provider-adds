@@ -15,8 +15,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
-	"github.com/bjoernf73/terraform-provider-adlc/internal/ad"
-	"github.com/bjoernf73/terraform-provider-adlc/internal/client"
+	"github.com/bjoernf73/terraform-provider-adds/internal/ad"
+	"github.com/bjoernf73/terraform-provider-adds/internal/client"
 )
 
 var (
@@ -124,7 +124,7 @@ func (r *groupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				MarkdownDescription: "Allow the `managed_by` principal to change the membership list, the **Manager can update membership list** " +
 					"checkbox in Active Directory Users and Computers. This is not a stored attribute: it adds an Allow access " +
 					"control entry granting `WriteProperty` on the `member` attribute. Requires `managed_by`. Defaults to `false`, " +
-					"which removes that entry for the manager; do not also manage it with `adlc_access_rule`.",
+					"which removes that entry for the manager; do not also manage it with `adds_access_rule`.",
 			},
 			"category": schema.StringAttribute{
 				Optional:            true,
@@ -290,7 +290,7 @@ func groupScopeConversionError(p *ad.GroupScopePreflight) string {
 	if len(members) > 0 {
 		fmt.Fprintf(&sb, "\n  - this group contains the group member(s): %s", strings.Join(members, ", "))
 	}
-	sb.WriteString("\n\nRemove the offending membership (for example with adlc_group_member) or change those groups' " +
+	sb.WriteString("\n\nRemove the offending membership (for example with adds_group_member) or change those groups' " +
 		"scope, then apply again. See the group scope conversions guide for the full matrix.")
 	return sb.String()
 }
@@ -300,13 +300,13 @@ func (r *groupResource) Configure(_ context.Context, req resource.ConfigureReque
 		return
 	}
 
-	adlcClient, ok := req.ProviderData.(*client.Client)
+	addsClient, ok := req.ProviderData.(*client.Client)
 	if !ok {
 		resp.Diagnostics.AddError("Unexpected provider data type", fmt.Sprintf("Expected *client.Client, got %T", req.ProviderData))
 		return
 	}
 
-	r.client = adlcClient
+	r.client = addsClient
 }
 
 func (r *groupResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {

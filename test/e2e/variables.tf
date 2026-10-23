@@ -67,19 +67,19 @@ variable "timeout_seconds" {
 variable "ou_path" {
   type        = string
   description = "Slash-delimited OU path created by the smoke test."
-  default     = "TerraformCI/Smoke"
+  default     = "TerraformCI-ADDS/Smoke"
 }
 
 variable "ou_description" {
   type        = string
   description = "Description set on the leaf OU."
-  default     = "terraform-provider-adlc CI smoke test"
+  default     = "terraform-provider-adds CI smoke test"
 }
 
 variable "group_name" {
   type        = string
   description = "Name of the group created by the smoke test."
-  default     = "adlc-ci-group"
+  default     = "adds-ci-group"
 }
 
 variable "group_scope" {

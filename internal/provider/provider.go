@@ -13,25 +13,25 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
-	"github.com/bjoernf73/terraform-provider-adlc/internal/client"
-	"github.com/bjoernf73/terraform-provider-adlc/internal/config"
+	"github.com/bjoernf73/terraform-provider-adds/internal/client"
+	"github.com/bjoernf73/terraform-provider-adds/internal/config"
 )
 
-var _ frameworkprovider.Provider = &adlcProvider{}
+var _ frameworkprovider.Provider = &addsProvider{}
 
 func New(version string) func() frameworkprovider.Provider {
 	return func() frameworkprovider.Provider {
-		return &adlcProvider{
+		return &addsProvider{
 			version: version,
 		}
 	}
 }
 
-type adlcProvider struct {
+type addsProvider struct {
 	version string
 }
 
-type adlcProviderModel struct {
+type addsProviderModel struct {
 	Host                types.String `tfsdk:"host"`
 	Port                types.Int64  `tfsdk:"port"`
 	Transport           types.String `tfsdk:"transport"`
@@ -53,14 +53,14 @@ type adlcProviderModel struct {
 	SSHHostKey          types.String `tfsdk:"ssh_host_key"`
 }
 
-func (p *adlcProvider) Metadata(_ context.Context, _ frameworkprovider.MetadataRequest, resp *frameworkprovider.MetadataResponse) {
-	resp.TypeName = "adlc"
+func (p *addsProvider) Metadata(_ context.Context, _ frameworkprovider.MetadataRequest, resp *frameworkprovider.MetadataResponse) {
+	resp.TypeName = "adds"
 	resp.Version = p.version
 }
 
-func (p *adlcProvider) Schema(_ context.Context, _ frameworkprovider.SchemaRequest, resp *frameworkprovider.SchemaResponse) {
+func (p *addsProvider) Schema(_ context.Context, _ frameworkprovider.SchemaRequest, resp *frameworkprovider.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "ADLC is an Active Directory Lifecycle provider that manages directory objects and policy through PowerShell 7 commands on remote Windows systems over WinRM or SSH.",
+		MarkdownDescription: "ADDS is an Active Directory Domain Services provider that manages directory objects and policy through PowerShell 7 commands on remote Windows systems over WinRM or SSH.",
 		Attributes: map[string]schema.Attribute{
 			"host": schema.StringAttribute{
 				Required:            true,
@@ -94,7 +94,7 @@ func (p *adlcProvider) Schema(_ context.Context, _ frameworkprovider.SchemaReque
 			"gpo_powershell_path": schema.StringAttribute{
 				Optional: true,
 				MarkdownDescription: "PowerShell executable for scripts that import the `GroupPolicy` module, including GPO imports, " +
-					"the `adlc_gpo` data source, JSON/backup exports, permissions, security filtering and WMI-filter assignment. " +
+					"the `adds_gpo` data source, JSON/backup exports, permissions, security filtering and WMI-filter assignment. " +
 					"Defaults to `powershell.exe`, where the module is native. Set this to `pwsh` to use the Windows PowerShell " +
 					"compatibility layer, which returns deserialized objects and can lose nested properties. LDAP-only GPO links " +
 					"and backup/JSON resource reads use `powershell_path` instead.",
@@ -148,8 +148,8 @@ func (p *adlcProvider) Schema(_ context.Context, _ frameworkprovider.SchemaReque
 	}
 }
 
-func (p *adlcProvider) Configure(ctx context.Context, req frameworkprovider.ConfigureRequest, resp *frameworkprovider.ConfigureResponse) {
-	var data adlcProviderModel
+func (p *addsProvider) Configure(ctx context.Context, req frameworkprovider.ConfigureRequest, resp *frameworkprovider.ConfigureResponse) {
+	var data addsProviderModel
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -161,17 +161,17 @@ func (p *adlcProvider) Configure(ctx context.Context, req frameworkprovider.Conf
 		return
 	}
 
-	adlcClient, err := client.New(cfg)
+	addsClient, err := client.New(cfg)
 	if err != nil {
-		resp.Diagnostics.AddError("Unable to create adlc client", err.Error())
+		resp.Diagnostics.AddError("Unable to create adds client", err.Error())
 		return
 	}
 
-	resp.DataSourceData = adlcClient
-	resp.ResourceData = adlcClient
+	resp.DataSourceData = addsClient
+	resp.ResourceData = addsClient
 }
 
-func (p *adlcProvider) Resources(_ context.Context) []func() resource.Resource {
+func (p *addsProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewOrganizationalUnitResource,
 		NewGroupResource,
@@ -196,7 +196,7 @@ func (p *adlcProvider) Resources(_ context.Context) []func() resource.Resource {
 	}
 }
 
-func (p *adlcProvider) DataSources(_ context.Context) []func() datasource.DataSource {
+func (p *addsProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewDomainDataSource,
 		NewComputerDataSource,
@@ -209,7 +209,7 @@ func (p *adlcProvider) DataSources(_ context.Context) []func() datasource.DataSo
 	}
 }
 
-func expandProviderConfig(data adlcProviderModel) (config.Config, diag.Diagnostics) {
+func expandProviderConfig(data addsProviderModel) (config.Config, diag.Diagnostics) {
 	var diags diag.Diagnostics
 
 	cfg := config.Config{

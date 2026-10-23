@@ -16,9 +16,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
-	"github.com/bjoernf73/terraform-provider-adlc/internal/ad"
-	"github.com/bjoernf73/terraform-provider-adlc/internal/client"
-	"github.com/bjoernf73/terraform-provider-adlc/internal/password"
+	"github.com/bjoernf73/terraform-provider-adds/internal/ad"
+	"github.com/bjoernf73/terraform-provider-adds/internal/client"
+	"github.com/bjoernf73/terraform-provider-adds/internal/password"
 )
 
 var (
@@ -78,7 +78,7 @@ func (r *userPasswordResource) Schema(_ context.Context, _ resource.SchemaReques
 			"user": schema.StringAttribute{
 				Required: true,
 				MarkdownDescription: "User the password is set on. Accepts a distinguished name, `objectGUID`, SID, " +
-					"`DOMAIN\\name` or `sAMAccountName` — typically `adlc_user.<name>.id`.",
+					"`DOMAIN\\name` or `sAMAccountName` — typically `adds_user.<name>.id`.",
 				PlanModifiers: replaceString,
 			},
 			"user_dn": schema.StringAttribute{
@@ -131,7 +131,7 @@ func (r *userPasswordResource) Schema(_ context.Context, _ resource.SchemaReques
 					"Fire-and-forget: the flag is set when the password is set and is never read back or reconciled, " +
 					"because Active Directory clears it once the user changes the password. Leave `false` (the default) " +
 					"for automation accounts that keep using the stored password. Cannot be combined with " +
-					"`adlc_user.password_never_expires` or `cannot_change_password` on the same account.",
+					"`adds_user.password_never_expires` or `cannot_change_password` on the same account.",
 				PlanModifiers: []planmodifier.Bool{
 					boolplanmodifier.RequiresReplace(),
 				},
@@ -153,13 +153,13 @@ func (r *userPasswordResource) Configure(_ context.Context, req resource.Configu
 		return
 	}
 
-	adlcClient, ok := req.ProviderData.(*client.Client)
+	addsClient, ok := req.ProviderData.(*client.Client)
 	if !ok {
 		resp.Diagnostics.AddError("Unexpected provider data type", fmt.Sprintf("Expected *client.Client, got %T", req.ProviderData))
 		return
 	}
 
-	r.client = adlcClient
+	r.client = addsClient
 }
 
 func (r *userPasswordResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {

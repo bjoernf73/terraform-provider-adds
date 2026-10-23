@@ -1,6 +1,6 @@
-# terraform-provider-adlc
+# terraform-provider-adds
 
-A Terraform **Active Directory Lifecycle** provider that manages Active Directory
+A Terraform **Active Directory Domain Services** provider that manages Active Directory
 objects and policy through **PowerShell 7** on a remote Windows host over **WinRM**
 or **SSH**. Execution is remote-only today; local execution may be supported in the
 future.
@@ -12,39 +12,39 @@ future.
 
 | Resource | Manages |
 | --- | --- |
-| `adlc_organizational_unit` | Organizational units, creating missing parents on demand |
-| `adlc_group` | Groups: `Security` or `Distribution` category, `DomainLocal`, `Global` or `Universal` scope |
-| `adlc_group_member` | A single group membership |
-| `adlc_user` | User accounts. Passwords are not managed here. |
-| `adlc_user_password` | Sets a user's initial password, generated or supplied |
-| `adlc_gmsa` | Group managed service accounts |
-| `adlc_computer` | Computer accounts, for pre-staging or reconciling machine objects |
-| `adlc_kds_root_key` | Ensures a forest KDS root key exists (the gMSA prerequisite) |
-| `adlc_access_rule` | A single access control entry (ACE) on any directory object |
-| `adlc_backup_gpo` | Imports a `Backup-GPO` folder into a GPO |
-| `adlc_json_gpo` | Imports a JSON-described GPO |
-| `adlc_gpo_links` | The full, ordered set of GPO links on an OU, domain or site |
-| `adlc_wmi_filter` | A WMI filter (`msWMI-Som` object) |
-| `adlc_gpo_wmi_filter` | The WMI filter assigned to a single GPO |
-| `adlc_gpo_permission` | One trustee's named Group Policy permission |
-| `adlc_gpo_security_filter` | The complete set of principals allowed to apply one GPO |
-| `adlc_netlogon_files` | A Terraform-owned file tree below NETLOGON |
-| `adlc_administrative_templates` | A Terraform-owned file tree at the Central Store root |
-| `adlc_site` | An Active Directory replication site |
-| `adlc_subnet` | A CIDR network assigned to an Active Directory site |
+| `adds_organizational_unit` | Organizational units, creating missing parents on demand |
+| `adds_group` | Groups: `Security` or `Distribution` category, `DomainLocal`, `Global` or `Universal` scope |
+| `adds_group_member` | A single group membership |
+| `adds_user` | User accounts. Passwords are not managed here. |
+| `adds_user_password` | Sets a user's initial password, generated or supplied |
+| `adds_gmsa` | Group managed service accounts |
+| `adds_computer` | Computer accounts, for pre-staging or reconciling machine objects |
+| `adds_kds_root_key` | Ensures a forest KDS root key exists (the gMSA prerequisite) |
+| `adds_access_rule` | A single access control entry (ACE) on any directory object |
+| `adds_backup_gpo` | Imports a `Backup-GPO` folder into a GPO |
+| `adds_json_gpo` | Imports a JSON-described GPO |
+| `adds_gpo_links` | The full, ordered set of GPO links on an OU, domain or site |
+| `adds_wmi_filter` | A WMI filter (`msWMI-Som` object) |
+| `adds_gpo_wmi_filter` | The WMI filter assigned to a single GPO |
+| `adds_gpo_permission` | One trustee's named Group Policy permission |
+| `adds_gpo_security_filter` | The complete set of principals allowed to apply one GPO |
+| `adds_netlogon_files` | A Terraform-owned file tree below NETLOGON |
+| `adds_administrative_templates` | A Terraform-owned file tree at the Central Store root |
+| `adds_site` | An Active Directory replication site |
+| `adds_subnet` | A CIDR network assigned to an Active Directory site |
 
 ## Data sources
 
 | Data source | Reads |
 | --- | --- |
-| `adlc_domain` | The connected domain: DN, DNS root, NetBIOS name, well-known containers |
-| `adlc_computer` | An existing computer account, by DN, GUID, SID, `DOMAIN\name` or `sAMAccountName` |
-| `adlc_group` | An existing group, by DN, GUID, SID, `DOMAIN\name` or `sAMAccountName` |
-| `adlc_user` | An existing user, by DN, GUID, SID, `DOMAIN\name`, `sAMAccountName` or UPN |
-| `adlc_organizational_unit` | An existing OU, by slash path or distinguished name |
-| `adlc_gpo` | An existing Group Policy Object, by display name or GUID |
-| `adlc_json_gpo_export` | A live GPO's SYSVOL content, as JSON |
-| `adlc_backup_gpo_export` | A live GPO as native GPMC backup files, base64-encoded |
+| `adds_domain` | The connected domain: DN, DNS root, NetBIOS name, well-known containers |
+| `adds_computer` | An existing computer account, by DN, GUID, SID, `DOMAIN\name` or `sAMAccountName` |
+| `adds_group` | An existing group, by DN, GUID, SID, `DOMAIN\name` or `sAMAccountName` |
+| `adds_user` | An existing user, by DN, GUID, SID, `DOMAIN\name`, `sAMAccountName` or UPN |
+| `adds_organizational_unit` | An existing OU, by slash path or distinguished name |
+| `adds_gpo` | An existing Group Policy Object, by display name or GUID |
+| `adds_json_gpo_export` | A live GPO's SYSVOL content, as JSON |
+| `adds_backup_gpo_export` | A live GPO as native GPMC backup files, base64-encoded |
 
 ## Documentation
 
@@ -76,14 +76,14 @@ A minimal configuration:
 ```hcl
 terraform {
   required_providers {
-    adlc = {
-      source  = "bjoernf73/adlc"
+    adds = {
+      source  = "bjoernf73/adds"
       version = "0.0.32"
     }
   }
 }
 
-provider "adlc" {
+provider "adds" {
   transport       = "winrm"
   host            = "dc1.contoso.local"
   username        = "CONTOSO\\terraform"
@@ -92,20 +92,20 @@ provider "adlc" {
   powershell_path = "pwsh"
 }
 
-resource "adlc_organizational_unit" "servers" {
+resource "adds_organizational_unit" "servers" {
   path        = "Contoso/Servers/Windows"
   description = "Windows server OU"
 }
 
-resource "adlc_group" "server_admins" {
+resource "adds_group" "server_admins" {
   name  = "Server Admins"
   path  = "Contoso/Groups"
   scope = "DomainLocal"
 }
 
-resource "adlc_access_rule" "delegate_computers" {
-  target                = adlc_organizational_unit.servers.distinguished_name
-  trustee               = adlc_group.server_admins.sid
+resource "adds_access_rule" "delegate_computers" {
+  target                = adds_organizational_unit.servers.distinguished_name
+  trustee               = adds_group.server_admins.sid
   rights                = ["CreateChild", "DeleteChild"]
   object_type           = "computer"
   inherited_object_type = "organizationalUnit"
@@ -158,7 +158,7 @@ from CI over both transports. See [.gitlab-ci.yml](.gitlab-ci.yml).
 A manual transport check, for when CI is too slow a feedback loop:
 
 ```sh
-ADLC_HOST=10.0.13.6 ADLC_USERNAME='CONTOSO\Administrator' ADLC_PASSWORD=... \
+ADDS_HOST=10.0.13.6 ADDS_USERNAME='CONTOSO\Administrator' ADDS_PASSWORD=... \
   go test ./internal/transport -run TestWinRMSmoke -v
 ```
 
@@ -177,7 +177,7 @@ git push github v0.0.30       # Triggers GitHub Actions build and release
 The GitHub Actions workflow ([.github/workflows/release.yml](.github/workflows/release.yml)):
 
 - Builds binaries for **linux_amd64**, **darwin_amd64**, **darwin_arm64**, **windows_amd64** ++
-- Creates ZIP archives with proper Terraform naming (`terraform-provider-adlc_0.0.15_linux_amd64.zip`)
+- Creates ZIP archives with proper Terraform naming (`terraform-provider-adds_0.0.15_linux_amd64.zip`)
 - Generates SHA256 checksums
 - Creates a GitHub release with all artifacts
 

@@ -2,7 +2,7 @@
 page_title: "Paths and distinguished names"
 subcategory: "Guides"
 description: |-
-  How adlc resolves object locations, so configurations avoid repeating the domain
+  How adds resolves object locations, so configurations avoid repeating the domain
   component of every distinguished name.
 ---
 
@@ -44,7 +44,7 @@ A slash path reads in the natural direction, parent first, and every segment is 
 to be an organizational unit below the connected domain root:
 
 ```hcl
-resource "adlc_organizational_unit" "windows" {
+resource "adds_organizational_unit" "windows" {
   path = "Contoso/Servers/Windows"
 }
 ```
@@ -68,13 +68,13 @@ path = "OU=Servers,DC=contoso,DC=local"
 Nothing in the relative path names the domain, so the same module applies unchanged to
 `contoso.local` and `test.contoso.local`.
 
-~> `adlc_organizational_unit` **creates missing parents** along the path. `adlc_group`
-and `adlc_access_rule` do not — they expect the container to exist, and fail if it does
+~> `adds_organizational_unit` **creates missing parents** along the path. `adds_group`
+and `adds_access_rule` do not — they expect the container to exist, and fail if it does
 not.
 
 ## Implicitly created parent OUs
 
-When a path names OUs that do not yet exist, `adlc_organizational_unit` creates each
+When a path names OUs that do not yet exist, `adds_organizational_unit` creates each
 missing parent, not only the leaf. Every parent it actually creates is recorded on the
 resource that created it — exposed as the read-only `created_organizational_units`
 attribute — and removed again when that resource is destroyed. Parents that already
@@ -83,7 +83,7 @@ created an OU, it owns its lifecycle; if it did not, it leaves it alone.
 
 Recorded parents are removed **deepest first, and only while empty**. An OU is never
 deleted while it still contains anything — including objects the provider did not create.
-So if you remove an `adlc_organizational_unit` from your configuration and one of the OUs
+So if you remove an `adds_organizational_unit` from your configuration and one of the OUs
 it originally created has since been populated (by hand, by another tool, or by a
 resource whose path merely passes through it), that OU is kept, and only the empty parts
 of the branch below the leaf are cleaned up. Nothing you did not ask the provider to
@@ -92,20 +92,20 @@ manage is destroyed as a side effect.
 Because these implicit parents live inside the state of a single resource rather than as
 separate resources, they cannot be addressed, imported, or moved individually. To keep
 ownership explicit and predictable, **declare every OU in a path as its own
-`adlc_organizational_unit` resource** and build deeper paths from
+`adds_organizational_unit` resource** and build deeper paths from
 `distinguished_name`:
 
 ```hcl
-resource "adlc_organizational_unit" "contoso" {
+resource "adds_organizational_unit" "contoso" {
   path = "Contoso"
 }
 
-resource "adlc_organizational_unit" "servers" {
-  path = "${adlc_organizational_unit.contoso.path}/Servers"
+resource "adds_organizational_unit" "servers" {
+  path = "${adds_organizational_unit.contoso.path}/Servers"
 }
 
-resource "adlc_organizational_unit" "windows" {
-  path = "${adlc_organizational_unit.servers.path}/Windows"
+resource "adds_organizational_unit" "windows" {
+  path = "${adds_organizational_unit.servers.path}/Windows"
 }
 ```
 
@@ -115,7 +115,7 @@ being left behind after a destroy.
 
 ## Moving or renaming an OU
 
-Changing `path` on an existing `adlc_organizational_unit` **moves and/or renames the OU in
+Changing `path` on an existing `adds_organizational_unit` **moves and/or renames the OU in
 place** — it is not destroyed and recreated. The OU keeps its GUID, and therefore keeps its
 GPO links, ACLs and any other references that point at it. Every object it contains moves
 with it, whether or not the provider manages it: child OUs, groups, users, computers, and
@@ -126,19 +126,19 @@ everything beneath it — that must happen as one operation. Consider an OU crea
 `Groups/Tier0` holding a couple of security groups whose own `path` is derived from it:
 
 ```hcl
-resource "adlc_organizational_unit" "tier0" {
+resource "adds_organizational_unit" "tier0" {
   path = "Groups/Tier0" # later changed to "Tier0/Groups"
 }
 
-resource "adlc_group" "admins" {
+resource "adds_group" "admins" {
   name = "Tier0 Admins"
-  path = adlc_organizational_unit.tier0.path
+  path = adds_organizational_unit.tier0.path
 }
 ```
 
 When you change the path to `Tier0/Groups`, the OU update runs first: it creates the new
 parent (`OU=Tier0`), then moves and renames the leaf so it becomes `Tier0/Groups`, carrying
-the two groups along. By the time the `adlc_group` resources are reconciled they are already
+the two groups along. By the time the `adds_group` resources are reconciled they are already
 in the right container, so their move is a no-op. Nothing is deleted, so there is never a
 moment where AD is asked to remove a non-empty OU.
 
@@ -163,13 +163,13 @@ important locations are containers (`CN=`) rather than organizational units:
 For these, write the distinguished name but leave off the domain:
 
 ```hcl
-resource "adlc_group" "legacy_readers" {
+resource "adds_group" "legacy_readers" {
   name  = "Legacy Readers"
   path  = "CN=Users"
   scope = "DomainLocal"
 }
 
-resource "adlc_access_rule" "manage_pki" {
+resource "adds_access_rule" "manage_pki" {
   target      = "CN=Public Key Services,CN=Services,CN=Configuration"
   trustee     = "PKI Admins"
   rights      = ["GenericAll"]
@@ -196,7 +196,7 @@ An empty string means the domain root, which is where forest-wide delegations su
 directory replication are granted:
 
 ```hcl
-resource "adlc_access_rule" "replicate_directory_changes" {
+resource "adds_access_rule" "replicate_directory_changes" {
   target      = ""
   trustee     = "Entra Connect"
   rights      = ["ExtendedRight"]
@@ -208,24 +208,24 @@ resource "adlc_access_rule" "replicate_directory_changes" {
 
 | Attribute | Meaning |
 | --- | --- |
-| `adlc_organizational_unit.path` | The OU itself, with parents created as needed |
-| `adlc_group.path` | The container holding the group |
-| `adlc_access_rule.target` | The object the ACE is applied to |
+| `adds_organizational_unit.path` | The OU itself, with parents created as needed |
+| `adds_group.path` | The container holding the group |
+| `adds_access_rule.target` | The object the ACE is applied to |
 
 Each resource also publishes the resolved distinguished name, which is what you pass to
 anything that needs a real DN:
 
 | Attribute | Contains |
 | --- | --- |
-| `adlc_organizational_unit.distinguished_name` | DN of the OU |
-| `adlc_group.distinguished_name` | DN of the group |
-| `adlc_group.path` | Container, in the form it was configured |
-| `adlc_access_rule.target_dn` | Resolved DN of the target |
+| `adds_organizational_unit.distinguished_name` | DN of the OU |
+| `adds_group.distinguished_name` | DN of the group |
+| `adds_group.path` | Container, in the form it was configured |
+| `adds_access_rule.target_dn` | Resolved DN of the target |
 
 ```hcl
-resource "adlc_access_rule" "delegate" {
-  target  = adlc_organizational_unit.servers.distinguished_name
-  trustee = adlc_group.admins.sid
+resource "adds_access_rule" "delegate" {
+  target  = adds_organizational_unit.servers.distinguished_name
+  trustee = adds_group.admins.sid
   rights  = ["CreateChild"]
 }
 ```
@@ -247,18 +247,18 @@ A genuine move still produces a real diff, because the resolved DN actually diff
 
 ## When you do need the domain
 
-Use the `adlc_domain` data source rather than a literal, so configurations stay portable:
+Use the `adds_domain` data source rather than a literal, so configurations stay portable:
 
 ```hcl
-data "adlc_domain" "current" {}
+data "adds_domain" "current" {}
 
 output "users_container" {
-  value = data.adlc_domain.current.users_container
+  value = data.adds_domain.current.users_container
 }
 
-resource "adlc_group" "example" {
+resource "adds_group" "example" {
   name = "Example"
-  path = data.adlc_domain.current.computers_container
+  path = data.adds_domain.current.computers_container
 }
 ```
 

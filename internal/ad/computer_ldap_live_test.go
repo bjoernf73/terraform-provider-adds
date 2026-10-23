@@ -11,7 +11,7 @@ import (
 // TestComputerReadLDAPParity creates a computer account exercising the ACL field, the UAC flags,
 // msDS-SupportedEncryptionTypes (encryption types plus the compound-identity bit), SPNs and the
 // managed_by/sam/path match fields, then compares the LDAP read against the module-computed
-// result from EnsureComputer. Host-gated: set ADLC_HOST. Created under CN=Computers, cleaned up.
+// result from EnsureComputer. Host-gated: set ADDS_HOST. Created under CN=Computers, cleaned up.
 func TestComputerReadLDAPParity(t *testing.T) {
 	c := liveADClient(t)
 	ctx := context.Background()

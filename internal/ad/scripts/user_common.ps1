@@ -162,7 +162,7 @@ function Get-UserSetParams {
 
 # Generates a strong random password used only to bring an account into the enabled state
 # when it has no usable password yet. It is never returned to Terraform or written to state;
-# a password resource (adlc_user_password) may replace it afterwards. One character from each
+# a password resource (adds_user_password) may replace it afterwards. One character from each
 # class is guaranteed so AD's default complexity policy is met, then the result is shuffled.
 function New-EnableBootstrapPassword([int]$Length = 25) {
     $lower = 'abcdefghijklmnopqrstuvwxyz'
@@ -193,11 +193,11 @@ function New-EnableBootstrapPassword([int]$Length = 25) {
     return ConvertTo-SecureString -String (-join $chars) -AsPlainText -Force
 }
 
-# Reconciles the account's Enabled state. adlc_user fully owns the enabled flag and must be
+# Reconciles the account's Enabled state. adds_user fully owns the enabled flag and must be
 # able to bring the account into the desired state on its own. Enabling an account that has
 # no usable password fails the domain password policy; in that case set a throwaway strong
 # random password (never surfaced to Terraform or stored in state) purely so the account can
-# be enabled. A password resource (adlc_user_password) may replace that password later, but
+# be enabled. A password resource (adds_user_password) may replace that password later, but
 # must not change the enabled state. Any other failure re-throws.
 function Set-UserEnabledState([string]$DistinguishedName, [bool]$Desired) {
     $serverParams = Get-ServerParams
