@@ -24,12 +24,16 @@ function Get-ServerParams {
 # ---------------------------------------------------------------------------
 # LDAP (System.DirectoryServices.Protocols) helpers
 #
-# S.DS.P ships in the base class library, so unlike the ActiveDirectory module it needs no
-# import. That import costs ~600 ms per process, and the provider runs every operation in a
-# fresh remote PowerShell process (the shell/connection is reused, the process is not), so the
-# cost is paid again on every single read and write. Reads served from these helpers skip it
-# entirely. One connection is cached per process and reused.
+# S.DS.P is auto-available in PowerShell 7, but Windows PowerShell 5.1 (used for GPO operations
+# via GPOPowerShellPath) does not load it by default, so load it on demand before any of its types
+# are used. Unlike the ActiveDirectory module this costs nothing in pwsh (already loaded) and is a
+# one-off assembly load under Windows PowerShell. One connection is cached per process and reused.
 # ---------------------------------------------------------------------------
+
+# Guarded so it is a no-op where S.DS.P is already present (PowerShell 7).
+if (-not ('System.DirectoryServices.Protocols.LdapConnection' -as [type])) {
+    Add-Type -AssemblyName System.DirectoryServices.Protocols -ErrorAction Stop
+}
 
 $script:ADDSLdapConnection = $null
 
