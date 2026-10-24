@@ -41,9 +41,10 @@ module's build. `go build ./...` at the repo root must never need them.
 ```
 main.go                          providerserver.Serve -> internal/provider
 internal/config                  Config struct: transport, creds, timeouts, powershell_path, domain_controller
-internal/transport               Runner interface { Run(ctx, command, stdin) (Result, error) }; winrm.go, ssh.go
-internal/powershell              BuildRunCommand (one process stages+runs+deletes a .ps1), DecodeCLIXML
-internal/client                  Client: RunPowerShell, RunPowerShellJSON (decode stdout into target)
+internal/transport               Runner interface { Run(ctx, command, stdin) (Result, error) } + optional
+                                 HostRunner { StartHost -> HostSession }; winrm.go, ssh.go reuse one connection
+internal/powershell              BuildRunCommand (one-shot stage+run+delete), BuildHostCommand (warm host loop), DecodeCLIXML
+internal/client                  Client: RunPowerShell, RunPowerShellJSON (decode stdout into target); warm-host + fallback
 internal/ad                      One file per AD object type + scripts/*.ps1 embedded via go:embed
 internal/provider                Provider definition + one resource_*.go per resource
 examples/<resource>/             Runnable HCL example per resource
@@ -53,17 +54,27 @@ Data flow for any operation:
 `resource_x.go` → `internal/ad` builds a script → `client.RunPowerShellJSON` →
 `transport.Runner` (WinRM/SSH) stages the script on the host and runs it → JSON on stdout → struct.
 
-Each operation runs a single `-EncodedCommand` run bootstrap: it reads the script as **plain text**
-from **stdin**, writes it to `C:\Windows\Temp\adds-<token>.ps1`, runs it from disk with the call
-operator (`& $p`), and deletes it in a `finally` block — all in one remote process. Collapsing the
-former write/run/delete trio into one process cuts the per-operation connection and server-process
-count (`sshd.exe`, `winrshost.exe`, `conhost.exe`) and latency roughly threefold. The body travels
+Default `pwsh` operations run on a **warm host**: one long-lived remote `pwsh` process per
+connection (`internal/powershell` `BuildHostCommand`) that loops reading a plain-text script from
+stdin, staging it to `C:\Windows\Temp\adds-<token>.ps1`, running it with `& $p`, deleting it, and
+returning a length-framed JSON envelope (`{exit, out, err}`, stdout/stderr base64). Because the
+process stays alive, the first operation pays the ~600 ms ActiveDirectory module import and later
+ones reuse the loaded module. `internal/client` holds the host, restarts it on a transport fault
+(`hostMaxAttempts`), and latches it off (`hostDisabled`) on a malformed response, falling back to
+the one-shot path. The transport also keeps **one connection/shell alive** across operations
+(SSH session-per-op on a persistent dial; a persistent WinRM shell), so `sshd.exe`/`winrshost.exe`
+stay ~constant instead of growing per operation.
+
+GPO operations (Windows PowerShell via `GPOPowerShellPath`) and any host-unavailable case use the
+one-shot path: a single `-EncodedCommand` run bootstrap reads the script as **plain text** from
+**stdin**, writes it to `C:\Windows\Temp\adds-<token>.ps1`, runs it from disk with the call
+operator (`& $p`), and deletes it in a `finally` block — all in one remote process. The body travels
 on stdin, not the command line, because WinRM shells run under `cmd.exe` whose 8191 character limit
 the scripts would otherwise exceed — **never put the script on the command line**. The script is
 staged and run as a file (not decompressed and `Invoke-Expression`-ed in memory) because the old
 in-memory bootstrap is behaviourally identical to a PowerShell stager and is blocked by behavioural
-antivirus (Defender `Behavior:Win32/PShellCobStager`). Keep the run bootstrap free of
-`FromBase64String`/`GZipStream`/`Invoke-Expression`; embedded scripts must stay ASCII so the
+antivirus (Defender `Behavior:Win32/PShellCobStager`). Keep both the run bootstrap and the host
+loop free of `FromBase64String`/`GZipStream`/`Invoke-Expression`; embedded scripts must stay ASCII so the
 plaintext stdin transfer is encoding-safe.
    equivalent resource in `ref/terraform-provider-ad/ad/` + its page under
    `ref/terraform-provider-ad/docs/` — use them to decide the attribute set, defaults, read/update
@@ -104,7 +115,10 @@ plaintext stdin transfer is encoding-safe.
 
 ### PowerShell script conventions
 
-- Start with `$ErrorActionPreference = 'Stop'` and `Import-Module ActiveDirectory -ErrorAction Stop`.
+- Start with `$ErrorActionPreference = 'Stop'`. Operations that need the ActiveDirectory module get
+  its import injected by `buildScript` as `$env:ADPS_LoadDefaultDrive = 0` + `Import-Module
+  ActiveDirectory -ErrorAction Stop` (the env var skips the unused `AD:` drive to speed the load);
+  do not re-import it in the body.
 - Honour `$payload.domain_controller` by splatting a `-Server` parameter (`Get-ServerParams`).
 - Output exactly one `ConvertTo-Json` document on stdout; write nothing else to stdout.
 - Any property that maps to a Go slice MUST be wrapped so a single item still serializes as a

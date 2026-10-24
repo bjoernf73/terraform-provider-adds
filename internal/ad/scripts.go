@@ -60,10 +60,14 @@ func buildScript(c *client.Client, payload map[string]any, names ...string) (str
 
 	var builder strings.Builder
 	// The ActiveDirectory module import costs ~600 ms per process, and the provider runs every
-	// operation in a fresh remote shell, so it is paid again on every read and write. Operations
-	// migrated to the LDAP helpers in common.ps1 skip it; every other operation still imports it.
+	// operation in a fresh remote PowerShell process (the shell/connection is reused, the process
+	// is not), so it is paid again on every read and write. Operations migrated to the LDAP
+	// helpers in common.ps1 skip it; every other operation still imports it.
 	if !moduleFreeOperations[source] {
-		builder.WriteString("Import-Module ActiveDirectory -ErrorAction Stop\n")
+		// ADPS_LoadDefaultDrive=0 skips creating the AD: PSDrive at import time, which otherwise
+		// makes an ADWS round trip on every import. The scripts only use -Server cmdlets, never
+		// the drive, so this trims the per-operation module load with no behavioural change.
+		builder.WriteString("$env:ADPS_LoadDefaultDrive = 0\nImport-Module ActiveDirectory -ErrorAction Stop\n")
 	}
 	for _, name := range names[:len(names)-1] {
 		builder.WriteString(script(name))

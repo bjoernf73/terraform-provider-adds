@@ -1,13 +1,16 @@
 package transport
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -19,6 +22,11 @@ import (
 
 type sshRunner struct {
 	config config.Config
+
+	// mu guards conn. The Client serializes operations, so conn carries one command at a time;
+	// the lock only protects the dial/drop handoff between an operation and a reconnect.
+	mu   sync.Mutex
+	conn *ssh.Client
 }
 
 func NewSSHRunner(cfg config.Config) (Runner, error) {
@@ -81,14 +89,9 @@ func (r *sshRunner) Run(ctx context.Context, command string, stdin string) (Resu
 }
 
 func (r *sshRunner) runOnce(ctx context.Context, command string, stdin string) (Result, error) {
-	sshConfig, err := r.buildClientConfig()
-	if err != nil {
-		return Result{}, err
-	}
-
 	// Bound the whole operation. Terraform may pass a context without a deadline, and
 	// session.Run blocks with no timeout of its own, so a hung remote command would otherwise
-	// stall the apply indefinitely. sshConfig.Timeout only covers the dial, not execution.
+	// stall the apply indefinitely. The dial has its own timeout from the client config.
 	timeout := r.config.Timeout
 	if timeout <= 0 {
 		timeout = 30 * time.Second
@@ -96,15 +99,16 @@ func (r *sshRunner) runOnce(ctx context.Context, command string, stdin string) (
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	address := net.JoinHostPort(r.config.Host, fmt.Sprintf("%d", r.config.Port))
-	conn, err := ssh.Dial("tcp", address, sshConfig)
+	conn, err := r.connection()
 	if err != nil {
-		return Result{}, fmt.Errorf("dialing SSH target: %w", err)
+		return Result{}, err
 	}
-	defer func() { _ = conn.Close() }()
 
 	session, err := conn.NewSession()
 	if err != nil {
+		// Opening a channel failed, so the shared connection is almost certainly dead; drop it
+		// so the retry in Run re-dials a fresh one.
+		r.dropConnection(conn)
 		return Result{}, fmt.Errorf("creating SSH session: %w", err)
 	}
 	defer func() { _ = session.Close() }()
@@ -123,9 +127,10 @@ func (r *sshRunner) runOnce(ctx context.Context, command string, stdin string) (
 	select {
 	case runErr = <-done:
 	case <-ctx.Done():
-		// Tear down the connection to unblock session.Run, wait for it to return so the
-		// output buffers are no longer being written, then surface the timeout.
-		_ = conn.Close()
+		// Closing the shared connection unblocks session.Run; wait for it to return so the
+		// output buffers are no longer being written, then drop the connection so the next
+		// operation re-dials rather than reusing a half-torn-down one.
+		r.dropConnection(conn)
 		<-done
 		return Result{Stdout: stdout.String(), Stderr: stderr.String()},
 			fmt.Errorf("ssh command timed out after %s: %w", timeout, ctx.Err())
@@ -147,7 +152,146 @@ func (r *sshRunner) runOnce(ctx context.Context, command string, stdin string) (
 		return result, nil
 	}
 
+	// A non-exit error is a transport fault (Win32-OpenSSH tearing the stdin pipe down, a
+	// dropped connection); drop the connection so the retry re-dials.
+	r.dropConnection(conn)
 	return result, runErr
+}
+
+// connection returns the shared SSH client, dialing one on first use. The Client serializes
+// operations, so a single connection carries every command: each operation opens a fresh session
+// (an SSH channel) on it instead of re-dialing and re-authenticating, which collapses the
+// per-operation sshd.exe and TCP/auth-handshake cost that otherwise dominated read latency.
+func (r *sshRunner) connection() (*ssh.Client, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.conn != nil {
+		return r.conn, nil
+	}
+
+	sshConfig, err := r.buildClientConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	address := net.JoinHostPort(r.config.Host, fmt.Sprintf("%d", r.config.Port))
+	conn, err := ssh.Dial("tcp", address, sshConfig)
+	if err != nil {
+		return nil, fmt.Errorf("dialing SSH target: %w", err)
+	}
+
+	r.conn = conn
+	return conn, nil
+}
+
+// dropConnection closes conn and clears it from the runner if it is still the current one, so the
+// next operation dials fresh. It is called when a session fails at the transport level, where
+// reusing the connection would keep failing.
+func (r *sshRunner) dropConnection(conn *ssh.Client) {
+	r.mu.Lock()
+	if r.conn == conn {
+		r.conn = nil
+	}
+	r.mu.Unlock()
+	_ = conn.Close()
+}
+
+// StartHost opens a long-running session on the shared connection and starts the warm host
+// command on it, returning a session that streams framed requests and responses. The session is
+// one SSH channel on the already-dialed connection, so the host adds no extra sshd handshake.
+func (r *sshRunner) StartHost(_ context.Context, command string) (HostSession, error) {
+	conn, err := r.connection()
+	if err != nil {
+		return nil, err
+	}
+
+	session, err := conn.NewSession()
+	if err != nil {
+		r.dropConnection(conn)
+		return nil, fmt.Errorf("creating SSH host session: %w", err)
+	}
+
+	stdin, err := session.StdinPipe()
+	if err != nil {
+		_ = session.Close()
+		return nil, fmt.Errorf("opening SSH host stdin: %w", err)
+	}
+
+	stdout, err := session.StdoutPipe()
+	if err != nil {
+		_ = session.Close()
+		return nil, fmt.Errorf("opening SSH host stdout: %w", err)
+	}
+
+	// The host writes framed responses only to stdout; drain stderr so a diagnostic line cannot
+	// fill the channel window and wedge the remote process.
+	session.Stderr = io.Discard
+
+	if err := session.Start(command); err != nil {
+		_ = session.Close()
+		return nil, fmt.Errorf("starting SSH host: %w", err)
+	}
+
+	timeout := r.config.Timeout
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+
+	return &sshHostSession{
+		session: session,
+		stdin:   stdin,
+		stdout:  bufio.NewReader(stdout),
+		timeout: timeout,
+	}, nil
+}
+
+type sshHostSession struct {
+	mu      sync.Mutex
+	session *ssh.Session
+	stdin   io.WriteCloser
+	stdout  *bufio.Reader
+	timeout time.Duration
+}
+
+func (s *sshHostSession) Exchange(ctx context.Context, request []byte) ([]byte, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	ctx, cancel := context.WithTimeout(ctx, s.timeout)
+	defer cancel()
+
+	type outcome struct {
+		payload []byte
+		err     error
+	}
+	done := make(chan outcome, 1)
+
+	go func() {
+		if err := writeFrame(s.stdin, request); err != nil {
+			done <- outcome{nil, err}
+			return
+		}
+		payload, err := readFrame(s.stdout)
+		done <- outcome{payload, err}
+	}()
+
+	select {
+	case <-ctx.Done():
+		// Closing the session unblocks the goroutine's read and kills the host; the client drops
+		// and restarts it on the next operation.
+		_ = s.session.Close()
+		return nil, fmt.Errorf("ssh host exchange timed out after %s: %w", s.timeout, ctx.Err())
+	case o := <-done:
+		return o.payload, o.err
+	}
+}
+
+func (s *sshHostSession) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_ = s.stdin.Close()
+	return s.session.Close()
 }
 
 func (r *sshRunner) buildClientConfig() (*ssh.ClientConfig, error) {

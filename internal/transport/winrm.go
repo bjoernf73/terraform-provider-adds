@@ -1,14 +1,17 @@
 package transport
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/masterzen/winrm"
@@ -29,6 +32,13 @@ type winrmRunner struct {
 	newClient func() (*winrm.Client, error)
 	endpoint  string
 	auth      string
+	timeout   time.Duration
+
+	// mu guards client and shell. The Client serializes operations, so the shell runs one
+	// command at a time; the lock only protects the create/drop handoff on a reconnect.
+	mu     sync.Mutex
+	client *winrm.Client
+	shell  *winrm.Shell
 }
 
 // winrmMaxAttempts bounds how many times Run re-issues a request on a transient fault. It
@@ -135,6 +145,7 @@ func NewWinRMRunner(cfg config.Config) (Runner, error) {
 		newClient: newClient,
 		endpoint:  fmt.Sprintf("%s://%s:%d/wsman", scheme, cfg.Host, cfg.Port),
 		auth:      auth,
+		timeout:   cfg.Timeout,
 	}, nil
 }
 
@@ -211,29 +222,194 @@ func (r *winrmRunner) Run(ctx context.Context, command string, stdin string) (Re
 }
 
 func (r *winrmRunner) run(ctx context.Context, command string, stdin string) (Result, error) {
-	// A fresh client per attempt gets a fresh connection pool.
-	client, err := r.newClient()
+	shell, err := r.acquireShell()
 	if err != nil {
 		return Result{}, err
 	}
 
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-
-	exitCode, err := client.RunWithContextWithInput(ctx, command, &stdout, &stderr, strings.NewReader(stdin))
+	exitCode, stdout, stderr, runErr := runOnShell(ctx, shell, command, stdin)
 	result := Result{
-		Stdout:   stdout.String(),
-		Stderr:   stderr.String(),
+		Stdout:   stdout,
+		Stderr:   stderr,
 		ExitCode: exitCode,
 	}
 
-	if err != nil {
-		// Return the raw error; Run adds the endpoint and attempt context, and classifies
-		// it for retry. Double-wrapping here would nest "winrm request to ..." twice.
-		return result, err
+	if runErr != nil {
+		// The shell or its connection may be unusable (a stale NTLM connection rejected with a
+		// 401, or a shell the server reaped on idle timeout); drop both so the retry in Run
+		// recreates them. Run classifies runErr and decides whether to retry.
+		r.dropShell(shell)
+		return result, runErr
 	}
 
 	return result, nil
+}
+
+// acquireShell returns the shared WinRM shell, creating the client and opening the shell on first
+// use. The Client serializes operations, so one server-side shell (one winrshost.exe) carries
+// every command instead of the library opening and deleting a shell per command, which collapses
+// the per-operation shell-create/delete round trips and process churn.
+func (r *winrmRunner) acquireShell() (*winrm.Shell, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.shell != nil {
+		return r.shell, nil
+	}
+
+	if r.client == nil {
+		client, err := r.newClient()
+		if err != nil {
+			return nil, err
+		}
+		r.client = client
+	}
+
+	shell, err := r.client.CreateShell()
+	if err != nil {
+		// A failure opening the shell often means a stale connection; force a fresh client next
+		// time so the retry does not reuse the same dead pool.
+		r.client = nil
+		return nil, err
+	}
+
+	r.shell = shell
+	return shell, nil
+}
+
+// dropShell clears the shared shell and its client when a command fails, so the next attempt
+// recreates both. The shell is not Closed here: the connection may already be dead, and the
+// server reaps an orphaned shell on its idle timeout. Reusing a failed shell would keep failing.
+func (r *winrmRunner) dropShell(shell *winrm.Shell) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.shell == shell {
+		r.shell = nil
+		r.client = nil
+	}
+}
+
+// runOnShell executes one command on an existing shell, pumping stdin in and stdout/stderr out,
+// and returns the exit code, captured streams and any command error. It mirrors the library's
+// RunWithContextWithInput but reuses the caller's shell instead of creating and deleting one per
+// call.
+func runOnShell(ctx context.Context, shell *winrm.Shell, command, stdin string) (int, string, string, error) {
+	cmd, err := shell.ExecuteWithContext(ctx, command)
+	if err != nil {
+		return 0, "", "", err
+	}
+
+	var stdout, stderr bytes.Buffer
+	var wg sync.WaitGroup
+	wg.Add(3)
+
+	go func() {
+		defer wg.Done()
+		defer func() { _ = cmd.Stdin.Close() }()
+		_, _ = io.Copy(cmd.Stdin, strings.NewReader(stdin))
+	}()
+	go func() {
+		defer wg.Done()
+		_, _ = io.Copy(&stdout, cmd.Stdout)
+	}()
+	go func() {
+		defer wg.Done()
+		_, _ = io.Copy(&stderr, cmd.Stderr)
+	}()
+
+	cmd.Wait()
+	wg.Wait()
+	_ = cmd.Close()
+
+	return cmd.ExitCode(), stdout.String(), stderr.String(), cmd.Error()
+}
+
+// StartHost opens a dedicated shell and starts the warm host command on it, returning a session
+// that streams framed requests and responses. The host gets its own shell (separate from the
+// per-operation run path) so the two never contend for one shell's command slot. The host command
+// is bound to a background context: it outlives any single operation, and per-request timeouts are
+// enforced in Exchange by closing the command.
+func (r *winrmRunner) StartHost(_ context.Context, command string) (HostSession, error) {
+	client, err := r.newClient()
+	if err != nil {
+		return nil, err
+	}
+
+	shell, err := client.CreateShell()
+	if err != nil {
+		return nil, fmt.Errorf("creating WinRM host shell: %w", err)
+	}
+
+	cmd, err := shell.ExecuteWithContext(context.Background(), command)
+	if err != nil {
+		_ = shell.Close()
+		return nil, fmt.Errorf("starting WinRM host: %w", err)
+	}
+
+	timeout := r.timeout
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+
+	// The host writes framed responses only to stdout; drain stderr so the library's output pump
+	// never blocks on an unread stderr pipe.
+	go func() { _, _ = io.Copy(io.Discard, cmd.Stderr) }()
+
+	return &winrmHostSession{
+		shell:   shell,
+		cmd:     cmd,
+		stdout:  bufio.NewReader(cmd.Stdout),
+		timeout: timeout,
+	}, nil
+}
+
+type winrmHostSession struct {
+	mu      sync.Mutex
+	shell   *winrm.Shell
+	cmd     *winrm.Command
+	stdout  *bufio.Reader
+	timeout time.Duration
+}
+
+func (s *winrmHostSession) Exchange(ctx context.Context, request []byte) ([]byte, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	ctx, cancel := context.WithTimeout(ctx, s.timeout)
+	defer cancel()
+
+	type outcome struct {
+		payload []byte
+		err     error
+	}
+	done := make(chan outcome, 1)
+
+	go func() {
+		if err := writeFrame(s.cmd.Stdin, request); err != nil {
+			done <- outcome{nil, err}
+			return
+		}
+		payload, err := readFrame(s.stdout)
+		done <- outcome{payload, err}
+	}()
+
+	select {
+	case <-ctx.Done():
+		// Closing the command unblocks the goroutine's read and terminates the host; the client
+		// drops and restarts it on the next operation.
+		_ = s.cmd.Close()
+		return nil, fmt.Errorf("winrm host exchange timed out after %s: %w", s.timeout, ctx.Err())
+	case o := <-done:
+		return o.payload, o.err
+	}
+}
+
+func (s *winrmHostSession) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_ = s.cmd.Stdin.Close()
+	_ = s.cmd.Close()
+	return s.shell.Close()
 }
 
 // isAuthFailure reports a 401, which means the (possibly stale pooled) connection was

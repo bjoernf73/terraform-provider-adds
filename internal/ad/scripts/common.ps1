@@ -26,8 +26,9 @@ function Get-ServerParams {
 #
 # S.DS.P ships in the base class library, so unlike the ActiveDirectory module it needs no
 # import. That import costs ~600 ms per process, and the provider runs every operation in a
-# fresh remote shell, so the cost is paid again on every single read and write. Reads served
-# from these helpers skip it entirely. One connection is cached per process and reused.
+# fresh remote PowerShell process (the shell/connection is reused, the process is not), so the
+# cost is paid again on every single read and write. Reads served from these helpers skip it
+# entirely. One connection is cached per process and reused.
 # ---------------------------------------------------------------------------
 
 $script:ADDSLdapConnection = $null
