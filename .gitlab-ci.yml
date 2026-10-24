@@ -23,7 +23,7 @@ build:
   stage: build
   image: $GO_IMAGE
   tags:
-    - kubernetes
+    - lin
   cache: *go_cache
   script:
     - test -z "$(gofmt -l main.go internal)" || { echo 'gofmt issues:'; gofmt -l main.go internal; exit 1; }
@@ -39,7 +39,7 @@ unit:
   stage: test
   image: $GO_IMAGE
   tags:
-    - kubernetes
+    - lin
   cache: *go_cache
   script:
     - go test ./...
@@ -55,7 +55,7 @@ unit:
     name: $TF_IMAGE
     entrypoint: [""]
   tags:
-    - kubernetes
+    - lin
   needs:
     - job: build
       artifacts: true
