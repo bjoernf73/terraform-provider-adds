@@ -568,7 +568,11 @@ function Resolve-ADPrincipal([string]$Identity) {
 # Security descriptors are read and written through the AD: drive.
 function Get-ADObjectAclPath([string]$DistinguishedName) {
     if ($null -eq (Get-PSDrive -Name 'AD' -ErrorAction SilentlyContinue)) {
-        New-PSDrive -Name 'AD' -PSProvider 'ActiveDirectory' -Root '//RootDSE/' -ErrorAction Stop | Out-Null
+        # -Scope Global so the drive outlives this function: without it the drive is created in the
+        # function's local scope and removed on return, and the caller's Get-Acl fails with "a drive
+        # with the name 'AD' does not exist". The module's default AD: drive is skipped at import
+        # (ADPS_LoadDefaultDrive=0), so this on-demand creation is the only AD: drive.
+        New-PSDrive -Name 'AD' -PSProvider 'ActiveDirectory' -Root '//RootDSE/' -Scope Global -ErrorAction Stop | Out-Null
     }
 
     # Pin the drive to the configured DC so ACL reads and writes hit the same replica.
