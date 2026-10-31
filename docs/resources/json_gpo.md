@@ -4,7 +4,7 @@ page_title: "adds_json_gpo Resource - adds"
 subcategory: ""
 description: |-
   Imports a GPO described as JSON (registry settings, security template, audit settings, comments, scripts and Group Policy Preferences), the format produced by dry.module.ad https://github.com/bjoernf73/dry.module.ad's Export-GroupPolicyFromAD. This is the second of two ways this provider manages GPOs: adds_backup_gpo imports a Backup-GPO folder; adds_json_gpo imports a JSON description instead, which resolves every security principal it references by name in the target domain automatically (####Replace[DOMAIN\Name] tokens), rather than needing an explicit migration table.
-  GPO links (adds_gpo_links), ACLs (adds_access_rule) and WMI filters are deliberately out of scope: any LinkTargets, Permissions or WMIFilter present in the JSON are ignored.
+  GPO links (adds_gpo_links), ACLs (adds_ace / adds_acl) and WMI filters are deliberately out of scope: any LinkTargets, Permissions or WMIFilter present in the JSON are ignored.
   The JSON file is read from the machine running Terraform; the resource has no way to detect out-of-band changes to that file between plans, so it re-imports whenever the file contents or replacements change, detected via a content fingerprint. Re-importing overwrites target_name's SYSVOL content in place, keeping its GUID and existing links, so updates never delete and recreate the GPO.
   A GPO exposes no content to diff against directly, so drift caused outside Terraform (someone editing the GPO in GPMC) is detected through its AD version counter instead: every plan re-checks it against the version recorded at the last apply, and re-imports the JSON to overwrite the drift when they no longer match. The import writes the SYSVOL GPT.ini in lockstep with the AD versionNumber, so this resource tracks only the AD versionNumber.
 ---
@@ -13,7 +13,7 @@ description: |-
 
 Imports a GPO described as JSON (registry settings, security template, audit settings, comments, scripts and Group Policy Preferences), the format produced by [dry.module.ad](https://github.com/bjoernf73/dry.module.ad)'s `Export-GroupPolicyFromAD`. This is the second of two ways this provider manages GPOs: `adds_backup_gpo` imports a `Backup-GPO` folder; `adds_json_gpo` imports a JSON description instead, which resolves every security principal it references by name in the target domain automatically (`####Replace[DOMAIN\Name]` tokens), rather than needing an explicit migration table.
 
-GPO links (`adds_gpo_links`), ACLs (`adds_access_rule`) and WMI filters are deliberately out of scope: any `LinkTargets`, `Permissions` or `WMIFilter` present in the JSON are ignored.
+GPO links (`adds_gpo_links`), ACLs (`adds_ace` / `adds_acl`) and WMI filters are deliberately out of scope: any `LinkTargets`, `Permissions` or `WMIFilter` present in the JSON are ignored.
 
 The JSON file is read from the machine running Terraform; the resource has no way to detect out-of-band changes to that file between plans, so it re-imports whenever the file contents or `replacements` change, detected via a content fingerprint. Re-importing overwrites `target_name`'s SYSVOL content in place, keeping its GUID and existing links, so updates never delete and recreate the GPO.
 

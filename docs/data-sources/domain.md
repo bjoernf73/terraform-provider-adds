@@ -22,7 +22,7 @@ resource "adds_group" "legacy_readers" {
   scope = "DomainLocal"
 }
 
-resource "adds_access_rule" "delegate_on_domain_root" {
+resource "adds_ace" "delegate_on_domain_root" {
   target      = data.adds_domain.current.distinguished_name
   trustee     = "Authenticated Users"
   rights      = ["GenericRead"]

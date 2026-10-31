@@ -59,7 +59,7 @@ GPO links and permissions are managed by separate resources either way:
 [`adds_gpo_links`](../resources/gpo_links.md) manages where a GPO is linked;
 [`adds_gpo_permission`](../resources/gpo_permission.md) manages a named Group Policy
 permission for one trustee; and [`adds_gpo_security_filter`](../resources/gpo_security_filter.md)
-authoritatively controls which principals may apply a GPO. [`adds_access_rule`](../resources/access_rule.md)
+authoritatively controls which principals may apply a GPO. [`adds_ace`](../resources/ace.md)
 is still appropriate for a raw ACL delegation on the GPO container itself (its distinguished name
 is `CN={guid},CN=Policies,CN=System,<domain DN>`, published as `distinguished_name` on both
 import resources), but it does not manage matching SYSVOL permissions and is not a substitute

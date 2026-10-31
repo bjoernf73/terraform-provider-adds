@@ -124,7 +124,7 @@ func (r *groupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				MarkdownDescription: "Allow the `managed_by` principal to change the membership list, the **Manager can update membership list** " +
 					"checkbox in Active Directory Users and Computers. This is not a stored attribute: it adds an Allow access " +
 					"control entry granting `WriteProperty` on the `member` attribute. Requires `managed_by`. Defaults to `false`, " +
-					"which removes that entry for the manager; do not also manage it with `adds_access_rule`.",
+					"which removes that entry for the manager; do not also manage it with `adds_ace`.",
 			},
 			"category": schema.StringAttribute{
 				Optional:            true,

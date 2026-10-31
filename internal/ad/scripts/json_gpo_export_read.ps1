@@ -22,6 +22,7 @@ catch {
 
 $policyGuid = "{$($gpo.Id.ToString())}"
 $sysvolRoot = Get-JsonGPOSysvolPath -PolicyGuid $policyGuid
+$policyServerId = Get-JsonGPOPolicyServerId
 
 $policySettings = [ordered]@{
     RegistrySettings       = @()
@@ -63,6 +64,7 @@ foreach ($target in @('Machine', 'User')) {
         $valueData = [string]$item.ValueData
         if ($valueType -ne 'REG_DWORD' -and $valueType -ne 'REG_QWORD') {
             $valueData = Resolve-JsonGPOSid $valueData
+            $valueData = ConvertTo-JsonGPOPolicyServerToken $valueData $policyServerId
         }
 
         $policySettings.RegistrySettings += [ordered]@{

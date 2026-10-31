@@ -88,7 +88,7 @@ resource "adds_group" "admins" {
   scope            = var.scope
 }
 
-resource "adds_access_rule" "manage_computers" {
+resource "adds_ace" "manage_computers" {
   target                = adds_organizational_unit.sub["Servers"].distinguished_name
   trustee               = adds_group.admins.sid
   rights                = ["CreateChild", "DeleteChild"]

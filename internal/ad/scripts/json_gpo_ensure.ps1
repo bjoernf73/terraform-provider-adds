@@ -29,6 +29,7 @@ if ($null -eq $gpo) {
 
 $policyGuid = "{$($gpo.Id.ToString())}"
 $sysvolRoot = Get-JsonGPOSysvolPath -PolicyGuid $policyGuid
+$policyServerId = Get-JsonGPOPolicyServerId
 
 # GPO comment
 if ($imported.PolicySettings.GPOComments) {
@@ -84,7 +85,10 @@ if ($imported.PolicySettings.RegistrySettings) {
         switch ($valueType) {
             'REG_DWORD' { $valueData = [uint32]$valueData }
             'REG_QWORD' { $valueData = [uint64]$valueData }
-            default { $valueData = Resolve-JsonGPOToken ([string]$valueData) }
+            default {
+                $valueData = Resolve-JsonGPOToken ([string]$valueData)
+                $valueData = Resolve-JsonGPOPolicyServerToken $valueData $policyServerId
+            }
         }
 
         $entry = New-GPRegistryPolicy -keyName ([string]$setting.KeyName) -valueName $valueName -valueType $valueType -valueData $valueData

@@ -22,21 +22,26 @@ import (
 )
 
 var (
+	_ resource.Resource                   = &aceResource{}
+	_ resource.ResourceWithConfigure      = &aceResource{}
+	_ resource.ResourceWithImportState    = &aceResource{}
+	_ resource.ResourceWithValidateConfig = &aceResource{}
+
 	_ resource.Resource                   = &accessRuleResource{}
 	_ resource.ResourceWithConfigure      = &accessRuleResource{}
 	_ resource.ResourceWithImportState    = &accessRuleResource{}
 	_ resource.ResourceWithValidateConfig = &accessRuleResource{}
 )
 
-func NewAccessRuleResource() resource.Resource {
-	return &accessRuleResource{}
+func NewACEResource() resource.Resource {
+	return &aceResource{}
 }
 
-type accessRuleResource struct {
+type aceResource struct {
 	client *client.Client
 }
 
-type accessRuleResourceModel struct {
+type aceResourceModel struct {
 	ID                      types.String `tfsdk:"id"`
 	Target                  types.String `tfsdk:"target"`
 	TargetDN                types.String `tfsdk:"target_dn"`
@@ -52,17 +57,18 @@ type accessRuleResourceModel struct {
 	InheritedObjectTypeGUID types.String `tfsdk:"inherited_object_type_guid"`
 }
 
-func (r *accessRuleResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_access_rule"
+func (r *aceResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_ace"
 }
 
-func (r *accessRuleResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+func (r *aceResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	replace := []planmodifier.String{stringplanmodifier.RequiresReplace()}
 
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Manages a single access control entry (ACE) on an Active Directory object.\n\n" +
 			"This resource is **non-authoritative**: it manages only the ACE it declares and never touches " +
-			"inherited ACEs, other trustees, or inheritance settings on the target.",
+			"inherited ACEs, other trustees, or inheritance settings on the target. To own a target's entire " +
+			"DACL authoritatively instead, use `adds_acl`.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:            true,
@@ -156,8 +162,8 @@ func (r *accessRuleResource) Schema(_ context.Context, _ resource.SchemaRequest,
 	}
 }
 
-func (r *accessRuleResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
-	var config accessRuleResourceModel
+func (r *aceResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	var config aceResourceModel
 	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -173,7 +179,7 @@ func (r *accessRuleResource) ValidateConfig(ctx context.Context, req resource.Va
 	}
 }
 
-func (r *accessRuleResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+func (r *aceResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
@@ -187,14 +193,14 @@ func (r *accessRuleResource) Configure(_ context.Context, req resource.Configure
 	r.client = addsClient
 }
 
-func (r *accessRuleResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan accessRuleResourceModel
+func (r *aceResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan aceResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	input, diags := accessRuleInput(ctx, plan)
+	input, diags := aceInput(ctx, plan)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -206,17 +212,17 @@ func (r *accessRuleResource) Create(ctx context.Context, req resource.CreateRequ
 		return
 	}
 
-	resp.Diagnostics.Append(resp.State.Set(ctx, applyAccessRuleResult(plan, rule))...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, applyACEResult(plan, rule))...)
 }
 
-func (r *accessRuleResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var state accessRuleResourceModel
+func (r *aceResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var state aceResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	input, diags := accessRuleInput(ctx, state)
+	input, diags := aceInput(ctx, state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -233,17 +239,17 @@ func (r *accessRuleResource) Read(ctx context.Context, req resource.ReadRequest,
 		return
 	}
 
-	resp.Diagnostics.Append(resp.State.Set(ctx, applyAccessRuleResult(state, rule))...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, applyACEResult(state, rule))...)
 }
 
-func (r *accessRuleResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan accessRuleResourceModel
+func (r *aceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var plan aceResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	input, diags := accessRuleInput(ctx, plan)
+	input, diags := aceInput(ctx, plan)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -255,17 +261,17 @@ func (r *accessRuleResource) Update(ctx context.Context, req resource.UpdateRequ
 		return
 	}
 
-	resp.Diagnostics.Append(resp.State.Set(ctx, applyAccessRuleResult(plan, rule))...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, applyACEResult(plan, rule))...)
 }
 
-func (r *accessRuleResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var state accessRuleResourceModel
+func (r *aceResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state aceResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	input, diags := accessRuleInput(ctx, state)
+	input, diags := aceInput(ctx, state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -276,11 +282,11 @@ func (r *accessRuleResource) Delete(ctx context.Context, req resource.DeleteRequ
 	}
 }
 
-func (r *accessRuleResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+func (r *aceResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 
-func accessRuleInput(ctx context.Context, model accessRuleResourceModel) (ad.AccessRuleInput, diag.Diagnostics) {
+func aceInput(ctx context.Context, model aceResourceModel) (ad.AccessRuleInput, diag.Diagnostics) {
 	var rights []string
 	diags := model.Rights.ElementsAs(ctx, &rights, false)
 
@@ -296,10 +302,10 @@ func accessRuleInput(ctx context.Context, model accessRuleResourceModel) (ad.Acc
 	}, diags
 }
 
-// applyAccessRuleResult keeps the configured rights when the effective mask is unchanged,
+// applyACEResult keeps the configured rights when the effective mask is unchanged,
 // because .NET renders some flag combinations under a composite name.
-func applyAccessRuleResult(model accessRuleResourceModel, rule *ad.AccessRule) accessRuleResourceModel {
-	model.ID = types.StringValue(accessRuleID(rule))
+func applyACEResult(model aceResourceModel, rule *ad.AccessRule) aceResourceModel {
+	model.ID = types.StringValue(aceID(rule))
 	model.TargetDN = types.StringValue(rule.TargetDN)
 	model.TrusteeSID = types.StringValue(rule.TrusteeSID)
 	model.ObjectTypeGUID = types.StringValue(rule.ObjectTypeGUID)
@@ -317,7 +323,7 @@ func applyAccessRuleResult(model accessRuleResourceModel, rule *ad.AccessRule) a
 	return model
 }
 
-func accessRuleID(rule *ad.AccessRule) string {
+func aceID(rule *ad.AccessRule) string {
 	return strings.Join([]string{
 		rule.TargetDN,
 		rule.TrusteeSID,
@@ -326,4 +332,27 @@ func accessRuleID(rule *ad.AccessRule) string {
 		rule.InheritedObjectTypeGUID,
 		rule.Inheritance,
 	}, "|")
+}
+
+// accessRuleResource is the deprecated alias kept so existing configurations and state using
+// the old adds_access_rule type keep working. It is the aceResource implementation with a
+// different type name and a deprecation notice; everything else (CRUD, schema, import) is
+// inherited unchanged.
+type accessRuleResource struct {
+	aceResource
+}
+
+func NewAccessRuleResource() resource.Resource {
+	return &accessRuleResource{}
+}
+
+func (r *accessRuleResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_access_rule"
+}
+
+func (r *accessRuleResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
+	r.aceResource.Schema(ctx, req, resp)
+	resp.Schema.DeprecationMessage = "adds_access_rule has been renamed to adds_ace. The adds_access_rule alias " +
+		"still works but will be removed in a future release; move each resource with " +
+		"`terraform state mv adds_access_rule.<name> adds_ace.<name>`."
 }

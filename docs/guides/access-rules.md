@@ -2,15 +2,19 @@
 page_title: "Access rules and delegation"
 subcategory: "Guides"
 description: |-
-  How adds_access_rule maps onto Active Directory ACEs, including all six
+  How adds_ace maps onto Active Directory ACEs, including all six
   ActiveDirectoryAccessRule constructors.
 ---
 
 # Access rules and delegation
 
-`adds_access_rule` manages a single access control entry (ACE) in the DACL of an
+`adds_ace` manages a single access control entry (ACE) in the DACL of an
 Active Directory object. It is a separate resource rather than an attribute of the
 objects it protects, for reasons covered in [Why a separate resource](#why-a-separate-resource).
+
+~> `adds_ace` was named `adds_access_rule` until it was joined by the authoritative
+[`adds_acl`](../resources/acl.md). The `adds_access_rule` type still works as a deprecated
+alias; migrate with `terraform state mv adds_access_rule.<name> adds_ace.<name>`.
 
 ## The model
 
@@ -18,7 +22,7 @@ One resource is one ACE. `rights` is a set of `ActiveDirectoryRights` values tha
 combined into a single entry using the flags enum, so this creates **one** ACE, not two:
 
 ```hcl
-resource "adds_access_rule" "example" {
+resource "adds_ace" "example" {
   target  = "Contoso/Servers"
   trustee = "Server Admins"
   rights  = ["CreateChild", "DeleteChild"]
@@ -53,7 +57,7 @@ The resolved value is published as `target_dn`.
 
 ```hcl
 # The well-known Computers container, which is a CN and not an OU.
-resource "adds_access_rule" "join_default_computers" {
+resource "adds_ace" "join_default_computers" {
   target      = "CN=Computers"
   trustee     = "Workstation Admins"
   rights      = ["CreateChild", "DeleteChild"]
@@ -61,7 +65,7 @@ resource "adds_access_rule" "join_default_computers" {
 }
 
 # The PKI configuration container.
-resource "adds_access_rule" "manage_pki" {
+resource "adds_ace" "manage_pki" {
   target      = "CN=Public Key Services,CN=Services,CN=Configuration"
   trustee     = "PKI Admins"
   rights      = ["GenericAll"]
@@ -69,7 +73,7 @@ resource "adds_access_rule" "manage_pki" {
 }
 
 # The domain root.
-resource "adds_access_rule" "replicate_directory_changes" {
+resource "adds_ace" "replicate_directory_changes" {
   target      = ""
   trustee     = "Entra Connect"
   rights      = ["ExtendedRight"]
@@ -104,7 +108,7 @@ rejected during `terraform plan`.
 No object type, no inheritance. The ACE applies to the target and nothing else.
 
 ```hcl
-resource "adds_access_rule" "full_control_on_ou" {
+resource "adds_ace" "full_control_on_ou" {
   target  = adds_organizational_unit.servers.distinguished_name
   trustee = "Server Admins"
   rights  = ["GenericAll"]
@@ -117,7 +121,7 @@ Adding `inheritance` propagates the ACE. `All` covers the object and every desce
 `Descendents` covers descendants only; `Children` covers immediate children.
 
 ```hcl
-resource "adds_access_rule" "read_everything_below" {
+resource "adds_ace" "read_everything_below" {
   target      = adds_organizational_unit.servers.distinguished_name
   trustee     = "Authenticated Users"
   rights      = ["GenericRead"]
@@ -131,7 +135,7 @@ resource "adds_access_rule" "read_everything_below" {
 over user objects anywhere below the OU — but not over the OU or any other class.
 
 ```hcl
-resource "adds_access_rule" "manage_users" {
+resource "adds_ace" "manage_users" {
   target                = adds_organizational_unit.staff.distinguished_name
   trustee               = "Helpdesk"
   rights                = ["GenericAll"]
@@ -147,7 +151,7 @@ names the class that may be created or deleted — here, computer objects direct
 OU only.
 
 ```hcl
-resource "adds_access_rule" "join_computers" {
+resource "adds_ace" "join_computers" {
   target      = adds_organizational_unit.servers.distinguished_name
   trustee     = "Server Admins"
   rights      = ["CreateChild", "DeleteChild"]
@@ -160,7 +164,7 @@ resource "adds_access_rule" "join_computers" {
 The same, but propagated to child OUs so the delegation survives future OU structure.
 
 ```hcl
-resource "adds_access_rule" "join_computers_anywhere" {
+resource "adds_ace" "join_computers_anywhere" {
   target      = adds_organizational_unit.servers.distinguished_name
   trustee     = "Server Admins"
   rights      = ["CreateChild", "DeleteChild"]
@@ -176,7 +180,7 @@ the class it is written on. This is the classic "let the helpdesk reset password
 objects" delegation.
 
 ```hcl
-resource "adds_access_rule" "reset_passwords" {
+resource "adds_ace" "reset_passwords" {
   target                = adds_organizational_unit.staff.distinguished_name
   trustee               = "Helpdesk"
   rights                = ["ExtendedRight"]
@@ -185,7 +189,7 @@ resource "adds_access_rule" "reset_passwords" {
   inherited_object_type = "user"
 }
 
-resource "adds_access_rule" "write_description" {
+resource "adds_ace" "write_description" {
   target                = adds_organizational_unit.staff.distinguished_name
   trustee               = "Helpdesk"
   rights                = ["ReadProperty", "WriteProperty"]
@@ -220,7 +224,7 @@ operations exist is defined by objects in
 — installing Exchange or extending the schema adds more.
 
 ```hcl
-resource "adds_access_rule" "reset_passwords" {
+resource "adds_ace" "reset_passwords" {
   target                = adds_organizational_unit.staff.distinguished_name
   trustee               = "Helpdesk"
   rights                = ["ExtendedRight"]
@@ -268,7 +272,7 @@ A **property set** is a named group of attributes, which is how you delegate a c
 set of fields without listing each one:
 
 ```hcl
-resource "adds_access_rule" "edit_personal_information" {
+resource "adds_ace" "edit_personal_information" {
   target                = adds_organizational_unit.staff.distinguished_name
   trustee               = "Helpdesk"
   rights                = ["ReadProperty", "WriteProperty"]
@@ -286,7 +290,7 @@ A **validated write** permits a write that Active Directory itself validates, ra
 than an unrestricted one:
 
 ```hcl
-resource "adds_access_rule" "register_own_spn" {
+resource "adds_ace" "register_own_spn" {
   target                = adds_organizational_unit.servers.distinguished_name
   trustee               = "Server Admins"
   rights                = ["Self"]
@@ -330,7 +334,7 @@ Because well-known principals resolve without being directory objects, they can 
 without declaring a `adds_group` for them:
 
 ```hcl
-resource "adds_access_rule" "deny_everyone" {
+resource "adds_ace" "deny_everyone" {
   target      = adds_organizational_unit.secret.distinguished_name
   trustee     = "Everyone"
   rights      = ["GenericRead"]
@@ -355,13 +359,13 @@ and without inheritance is redundant, and only the broader entry survives:
 
 ```hcl
 # These two rules target the same object and the same trustee with the same rights.
-resource "adds_access_rule" "narrow" {
+resource "adds_ace" "narrow" {
   target  = adds_organizational_unit.servers.distinguished_name
   trustee = adds_group.admins.sid
   rights  = ["GenericRead"]
 }
 
-resource "adds_access_rule" "broad" {
+resource "adds_ace" "broad" {
   target      = adds_organizational_unit.servers.distinguished_name
   trustee     = adds_group.admins.sid
   rights      = ["GenericRead"]
@@ -387,7 +391,7 @@ A background process (SDProp) runs roughly every hour and resets the ACL of ever
 `adminCount = 1` object to match the `AdminSDHolder` object, discarding any other ACE that
 was added in the meantime — including ones added by Terraform.
 
-`adds_access_rule` checks the target's `adminCount` before writing and refuses by
+`adds_ace` checks the target's `adminCount` before writing and refuses by
 default:
 
 ```
@@ -408,7 +412,7 @@ If you genuinely intend to delegate on a protected object — understanding that
 will revert it on its own schedule — set `ignore_admin_count_1 = true`:
 
 ```hcl
-resource "adds_access_rule" "temporary_delegation" {
+resource "adds_ace" "temporary_delegation" {
   target                = "CN=Administrator,CN=Users,DC=contoso,DC=local"
   trustee                = adds_group.helpdesk.sid
   rights                 = ["ExtendedRight"]
@@ -425,7 +429,7 @@ if you're a rock'n'roll kinda guy - change the ACL on AdminSDHolder itself.
 
 ## What this resource does not touch
 
-`adds_access_rule` is deliberately non-authoritative:
+`adds_ace` is deliberately non-authoritative:
 
 - **Inherited ACEs are never modified or removed.** Only explicit, non-inherited entries
   on the target are considered.
@@ -463,7 +467,7 @@ friends. Four reasons:
      path = adds_organizational_unit.servers.path # group depends on OU
    }
 
-   resource "adds_access_rule" "delegate" {
+   resource "adds_ace" "delegate" {
      target  = adds_organizational_unit.servers.distinguished_name
      trustee = adds_group.server_admins.sid # rule depends on both
      rights  = ["CreateChild", "DeleteChild"]

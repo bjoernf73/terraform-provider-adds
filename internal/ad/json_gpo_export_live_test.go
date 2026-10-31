@@ -109,6 +109,7 @@ function Get-GPO {
     }
 }
 function Get-JsonGPOSysvolPath { $env:ADDS_EXPORT_FIXTURE }
+function Get-JsonGPOPolicyServerId { $null }
 function Get-ADObject {
 	[pscustomobject]@{ flags = [int]$env:ADDS_EXPORT_FLAGS; gPCMachineExtensionNames = $null; gPCUserExtensionNames = $null }
 }

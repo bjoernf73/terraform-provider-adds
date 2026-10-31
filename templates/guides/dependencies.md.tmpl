@@ -103,8 +103,8 @@ Every attribute that names another directory object behaves this way:
 | `adds_group.managed_by` | DN, `objectGUID`, SID, `DOMAIN\name`, `sAMAccountName` |
 | `adds_group_member.group` | the same forms |
 | `adds_group_member.member` | the same forms |
-| `adds_access_rule.trustee` | the same forms, plus well-known names |
-| `adds_access_rule.target` | a path or DN, see [Paths and distinguished names](paths) |
+| `adds_ace.trustee` | the same forms, plus well-known names |
+| `adds_ace.target` | a path or DN, see [Paths and distinguished names](paths) |
 
 Because all of them accept plain strings, all of them can silently lose an edge. Useful
 attributes to reference instead:
@@ -121,7 +121,7 @@ member  = adds_group.operators.id
 A literal is correct when the object is not managed by Terraform:
 
 ```hcl
-resource "adds_access_rule" "authenticated_read" {
+resource "adds_ace" "authenticated_read" {
   target  = adds_organizational_unit.servers.distinguished_name
   trustee = "Authenticated Users" # well-known, always exists
   rights  = ["GenericRead"]
@@ -138,7 +138,7 @@ when the apply runs, otherwise resolution fails with the same error as above.
 
 ## Containers must exist first
 
-`adds_group` and `adds_access_rule` require their container or target to exist;
+`adds_group` and `adds_ace` require their container or target to exist;
 only `adds_organizational_unit` creates missing parents along its path. Referencing the
 OU rather than repeating its path gets both the correct value and the ordering:
 
@@ -210,7 +210,7 @@ resource "adds_group" "server_admins" {
   path = adds_organizational_unit.servers.path # group depends on OU
 }
 
-resource "adds_access_rule" "delegate" {
+resource "adds_ace" "delegate" {
   target  = adds_organizational_unit.servers.distinguished_name
   trustee = adds_group.server_admins.sid # rule depends on both
   rights  = ["CreateChild", "DeleteChild"]

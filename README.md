@@ -20,7 +20,8 @@ future.
 | `adds_gmsa` | Group managed service accounts |
 | `adds_computer` | Computer accounts, for pre-staging or reconciling machine objects |
 | `adds_kds_root_key` | Ensures a forest KDS root key exists (the gMSA prerequisite) |
-| `adds_access_rule` | A single access control entry (ACE) on any directory object |
+| `adds_ace` | A single access control entry (ACE) on any directory object (formerly `adds_access_rule`) |
+| `adds_acl` | The complete DACL of a directory object, managed authoritatively |
 | `adds_backup_gpo` | Imports a `Backup-GPO` folder into a GPO |
 | `adds_json_gpo` | Imports a JSON-described GPO |
 | `adds_gpo_links` | The full, ordered set of GPO links on an OU, domain or site |

@@ -76,6 +76,52 @@ function Resolve-JsonGPOToken([string]$InputString, [switch]$LowerCase) {
     return $InputString.Replace('####Replace', '')
 }
 
+# The certificate enrollment policy server's Id is a GUID tied to the source domain's AD CS
+# deployment, so it must be tokenized like SIDs to keep a certificate-autoenrollment GPO
+# portable. Reads the policy server configured on the host these scripts run on (same
+# machine-local semantics as ref/dry.ad.gpohelper.psm1). Returns $null when none is
+# configured or the PKI cmdlet is unavailable, which callers treat as "nothing to replace".
+function Get-JsonGPOPolicyServerId {
+    try {
+        $server = Get-CertificateEnrollmentPolicyServer -Scope All -Context Machine -ErrorAction Stop | Select-Object -First 1
+    }
+    catch {
+        return $null
+    }
+
+    if ($null -eq $server -or [string]::IsNullOrEmpty($server.Id)) {
+        return $null
+    }
+
+    return [string]$server.Id
+}
+
+# Export direction: replaces the live policy server Id with the ####PolicyServerId#### token.
+# No-op when no policy server is configured ($PolicyServerId empty), avoiding the empty-pattern
+# -ireplace that would otherwise splice the token between every character.
+function ConvertTo-JsonGPOPolicyServerToken([string]$InputString, [string]$PolicyServerId) {
+    if ([string]::IsNullOrEmpty($InputString) -or [string]::IsNullOrEmpty($PolicyServerId)) {
+        return $InputString
+    }
+
+    return $InputString -ireplace [regex]::Escape($PolicyServerId), '####PolicyServerId####'
+}
+
+# Import direction: resolves the ####PolicyServerId#### token back to the target host's live
+# policy server Id. Throws when the token is present but no policy server is configured, rather
+# than writing a broken registry value.
+function Resolve-JsonGPOPolicyServerToken([string]$InputString, [string]$PolicyServerId) {
+    if ([string]::IsNullOrEmpty($InputString) -or $InputString -notmatch '####PolicyServerId####') {
+        return $InputString
+    }
+
+    if ([string]::IsNullOrEmpty($PolicyServerId)) {
+        throw 'the GPO references ####PolicyServerId#### but no certificate enrollment policy server is configured on the target; configure AD CS certificate autoenrollment policy there before importing this GPO'
+    }
+
+    return $InputString.Replace('####PolicyServerId####', $PolicyServerId)
+}
+
 # Applies the user-supplied free-text replacements to the raw JSON text before it is
 # parsed. Each map key is a bare name (e.g. "DomainFQDN"); the #### delimiters are
 # implied, the same way Ansible variables imply {{ }}, so this wraps the key before

@@ -4,14 +4,18 @@ page_title: "adds_access_rule Resource - adds"
 subcategory: ""
 description: |-
   Manages a single access control entry (ACE) on an Active Directory object.
-  This resource is non-authoritative: it manages only the ACE it declares and never touches inherited ACEs, other trustees, or inheritance settings on the target.
+  This resource is non-authoritative: it manages only the ACE it declares and never touches inherited ACEs, other trustees, or inheritance settings on the target. To own a target's entire DACL authoritatively instead, use adds_acl.
 ---
 
 # adds_access_rule (Resource)
 
+~> **Deprecated.** `adds_access_rule` has been renamed to [`adds_ace`](ace.md). This alias
+still works but will be removed in a future release. Migrate each resource with
+`terraform state mv adds_access_rule.<name> adds_ace.<name>`.
+
 Manages a single access control entry (ACE) on an Active Directory object.
 
-This resource is **non-authoritative**: it manages only the ACE it declares and never touches inherited ACEs, other trustees, or inheritance settings on the target.
+This resource is **non-authoritative**: it manages only the ACE it declares and never touches inherited ACEs, other trustees, or inheritance settings on the target. To own a target's entire DACL authoritatively instead, use `adds_acl`.
 
 ## Example Usage
 

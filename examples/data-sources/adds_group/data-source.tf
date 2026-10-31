@@ -5,7 +5,7 @@ data "adds_group" "help_desk" {
 }
 
 # Use its SID where a security principal is expected.
-resource "adds_access_rule" "help_desk_reset_passwords" {
+resource "adds_ace" "help_desk_reset_passwords" {
   target                = "Contoso/Staff"
   trustee               = data.adds_group.help_desk.sid
   rights                = ["ExtendedRight"]

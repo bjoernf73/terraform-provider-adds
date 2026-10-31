@@ -63,7 +63,7 @@ func (r *jsonGPOResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 			"imports a JSON description instead, which resolves every security principal it references by name in the " +
 			"target domain automatically (`####Replace[DOMAIN\\Name]` tokens), rather than needing an explicit migration " +
 			"table.\n\n" +
-			"GPO links (`adds_gpo_links`), ACLs (`adds_access_rule`) and WMI filters are deliberately out of scope: any " +
+			"GPO links (`adds_gpo_links`), ACLs (`adds_ace` / `adds_acl`) and WMI filters are deliberately out of scope: any " +
 			"`LinkTargets`, `Permissions` or `WMIFilter` present in the JSON are ignored.\n\n" +
 			"The JSON file is read from the machine running Terraform; the resource has no way to detect out-of-band " +
 			"changes to that file between plans, so it re-imports whenever the file contents or `replacements` change, " +

@@ -69,7 +69,7 @@ Nothing in the relative path names the domain, so the same module applies unchan
 `contoso.local` and `test.contoso.local`.
 
 ~> `adds_organizational_unit` **creates missing parents** along the path. `adds_group`
-and `adds_access_rule` do not — they expect the container to exist, and fail if it does
+and `adds_ace` do not — they expect the container to exist, and fail if it does
 not.
 
 ## Implicitly created parent OUs
@@ -169,7 +169,7 @@ resource "adds_group" "legacy_readers" {
   scope = "DomainLocal"
 }
 
-resource "adds_access_rule" "manage_pki" {
+resource "adds_ace" "manage_pki" {
   target      = "CN=Public Key Services,CN=Services,CN=Configuration"
   trustee     = "PKI Admins"
   rights      = ["GenericAll"]
@@ -196,7 +196,7 @@ An empty string means the domain root, which is where forest-wide delegations su
 directory replication are granted:
 
 ```hcl
-resource "adds_access_rule" "replicate_directory_changes" {
+resource "adds_ace" "replicate_directory_changes" {
   target      = ""
   trustee     = "Entra Connect"
   rights      = ["ExtendedRight"]
@@ -210,7 +210,7 @@ resource "adds_access_rule" "replicate_directory_changes" {
 | --- | --- |
 | `adds_organizational_unit.path` | The OU itself, with parents created as needed |
 | `adds_group.path` | The container holding the group |
-| `adds_access_rule.target` | The object the ACE is applied to |
+| `adds_ace.target` | The object the ACE is applied to |
 
 Each resource also publishes the resolved distinguished name, which is what you pass to
 anything that needs a real DN:
@@ -220,10 +220,10 @@ anything that needs a real DN:
 | `adds_organizational_unit.distinguished_name` | DN of the OU |
 | `adds_group.distinguished_name` | DN of the group |
 | `adds_group.path` | Container, in the form it was configured |
-| `adds_access_rule.target_dn` | Resolved DN of the target |
+| `adds_ace.target_dn` | Resolved DN of the target |
 
 ```hcl
-resource "adds_access_rule" "delegate" {
+resource "adds_ace" "delegate" {
   target  = adds_organizational_unit.servers.distinguished_name
   trustee = adds_group.admins.sid
   rights  = ["CreateChild"]
