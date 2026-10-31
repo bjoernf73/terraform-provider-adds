@@ -29,6 +29,9 @@ var moduleFreeOperations = map[string]bool{
 	"gpo_link_read":            true,
 	"gpo_link_ensure":          true,
 	"gpo_link_delete":          true,
+	"gpo_single_link_read":     true,
+	"gpo_single_link_ensure":   true,
+	"gpo_single_link_delete":   true,
 }
 
 func script(name string) string {

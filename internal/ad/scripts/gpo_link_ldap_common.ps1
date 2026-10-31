@@ -103,3 +103,25 @@ function ConvertTo-ADDSGPLinkString($Entries) {
     }
     return $builder.ToString()
 }
+
+# Returns the target's GPO links as raw ordered entries (first = highest precedence), each a
+# pscustomobject with DN and Flags, for non-authoritative read-modify-write of a single link.
+# Returns $null when the target object does not exist, and an empty array when it has no links.
+function Get-ADDSRawGPLinks([string]$TargetDN) {
+    $entry = Get-ADDSEntry -DistinguishedName $TargetDN -Attributes @('gPLink')
+    if ($null -eq $entry) {
+        return $null
+    }
+
+    $gpLink = [string](Get-ADDSString $entry 'gPLink')
+    $parsed = @()
+    foreach ($match in [regex]::Matches($gpLink, '\[LDAP://(?<dn>[^;\]]+);(?<flags>\d+)\]')) {
+        $parsed += [pscustomobject]@{
+            DN    = $match.Groups['dn'].Value
+            Flags = [int]$match.Groups['flags'].Value
+        }
+    }
+    [array]::Reverse($parsed)
+
+    return @($parsed)
+}

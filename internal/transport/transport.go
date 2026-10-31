@@ -24,6 +24,8 @@ func NewRunner(cfg config.Config) (Runner, error) {
 		return NewWinRMRunner(cfg)
 	case "ssh":
 		return NewSSHRunner(cfg)
+	case "local":
+		return NewLocalRunner(cfg)
 	default:
 		return nil, fmt.Errorf("unsupported transport %q", cfg.Transport)
 	}

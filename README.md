@@ -25,6 +25,7 @@ future.
 | `adds_backup_gpo` | Imports a `Backup-GPO` folder into a GPO |
 | `adds_json_gpo` | Imports a JSON-described GPO |
 | `adds_gpo_links` | The full, ordered set of GPO links on an OU, domain or site |
+| `adds_gpo_link` | A single, non-authoritative GPO link on an OU, domain or site |
 | `adds_wmi_filter` | A WMI filter (`msWMI-Som` object) |
 | `adds_gpo_wmi_filter` | The WMI filter assigned to a single GPO |
 | `adds_gpo_permission` | One trustee's named Group Policy permission |

@@ -25,3 +25,10 @@ provider "adds" {
   password        = var.password
   powershell_path = "pwsh"
 }
+
+# Local: run on a domain controller or domain member under the current Windows logon, with no
+# remoting or credentials. Set powershell_path = "powershell.exe" on a host without PowerShell 7.
+provider "adds" {
+  alias     = "local"
+  transport = "local"
+}

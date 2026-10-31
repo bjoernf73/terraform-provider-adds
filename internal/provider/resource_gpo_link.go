@@ -69,7 +69,9 @@ func (r *gpoLinksResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 			"blocks inheritance from above. This resource is **authoritative** for `target`: any link present in Active " +
 			"Directory but not listed in `links` is removed.\n\n" +
 			"`links` order is significant: the first entry has the highest precedence (`Set-GPLink -Order 1`), matching how " +
-			"GPMC displays link order.",
+			"GPMC displays link order.\n\n" +
+			"When a target's links are contributed by more than one Terraform configuration, use the non-authoritative " +
+			"`adds_gpo_link` (singular) instead, which manages one link without touching the others.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:            true,

@@ -60,19 +60,19 @@ func (p *addsProvider) Metadata(_ context.Context, _ frameworkprovider.MetadataR
 
 func (p *addsProvider) Schema(_ context.Context, _ frameworkprovider.SchemaRequest, resp *frameworkprovider.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "ADDS is an Active Directory Domain Services provider that manages directory objects and policy through PowerShell 7 commands on remote Windows systems over WinRM or SSH.",
+		MarkdownDescription: "ADDS is an Active Directory Domain Services provider that manages directory objects and policy through PowerShell 7 commands, either on a remote Windows system over WinRM or SSH, or on the machine running Terraform itself (the `local` transport).",
 		Attributes: map[string]schema.Attribute{
 			"host": schema.StringAttribute{
-				Required:            true,
-				MarkdownDescription: "Remote Windows host to connect to.",
+				Optional:            true,
+				MarkdownDescription: "Windows host to connect to. Required for `winrm` and `ssh`; ignored by `local`, which runs on the machine executing Terraform.",
 			},
 			"port": schema.Int64Attribute{
 				Optional:            true,
-				MarkdownDescription: "Remote port. Defaults to 5985 or 5986 for WinRM, and 22 for SSH.",
+				MarkdownDescription: "Remote port. Defaults to 5985 or 5986 for WinRM, and 22 for SSH. Unused by `local`.",
 			},
 			"transport": schema.StringAttribute{
 				Required:            true,
-				MarkdownDescription: "Connection transport: `winrm` or `ssh`.",
+				MarkdownDescription: "Execution transport: `winrm`, `ssh`, or `local`. `local` runs PowerShell on the machine executing Terraform under the current Windows logon, with no remoting or credentials - intended for running on a domain controller or domain member.",
 			},
 			"username": schema.StringAttribute{
 				Optional:            true,
@@ -187,6 +187,7 @@ func (p *addsProvider) Resources(_ context.Context) []func() resource.Resource {
 		NewBackupGPOResource,
 		NewJsonGPOResource,
 		NewGPOLinksResource,
+		NewGPOLinkResource,
 		NewWMIFilterResource,
 		NewGPOWMIFilterResource,
 		NewGPOPermissionResource,
@@ -235,8 +236,8 @@ func expandProviderConfig(data addsProviderModel) (config.Config, diag.Diagnosti
 		SSHHostKey:          strings.TrimSpace(data.SSHHostKey.ValueString()),
 	}
 
-	if cfg.Host == "" {
-		diags.AddError("Missing host", "host must not be empty.")
+	if cfg.Host == "" && cfg.Transport != "local" {
+		diags.AddError("Missing host", "host is required for the winrm and ssh transports.")
 	}
 
 	switch cfg.Transport {
@@ -276,8 +277,11 @@ func expandProviderConfig(data addsProviderModel) (config.Config, diag.Diagnosti
 		} else {
 			cfg.Port = int(data.Port.ValueInt64())
 		}
+	case "local":
+		// Runs on the machine executing Terraform under the current Windows logon: no host,
+		// credentials or port are needed.
 	default:
-		diags.AddError("Unsupported transport", fmt.Sprintf("transport %q is not supported; use `winrm` or `ssh`.", cfg.Transport))
+		diags.AddError("Unsupported transport", fmt.Sprintf("transport %q is not supported; use `winrm`, `ssh`, or `local`.", cfg.Transport))
 	}
 
 	return cfg, diags

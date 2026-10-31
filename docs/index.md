@@ -2,12 +2,13 @@
 page_title: "Provider: adds"
 description: |-
   ADDS is an Active Directory Domain Services provider that manages directory objects and
-  policy through PowerShell 7 on a remote Windows host over WinRM or SSH.
+  policy through PowerShell 7 on a Windows host over WinRM or SSH, or locally on the machine
+  running Terraform.
 ---
 
 # adds Provider
 
-ADDS is an Active Directory Domain Services provider that manages directory objects and policy through PowerShell 7 commands on remote Windows systems over WinRM or SSH.
+ADDS is an Active Directory Domain Services provider that manages directory objects and policy through PowerShell 7 commands, either on a remote Windows system over WinRM or SSH, or on the machine running Terraform itself (the `local` transport).
 
 ## Requirements
 
@@ -45,6 +46,13 @@ provider "adds" {
   password        = var.password
   powershell_path = "pwsh"
 }
+
+# Local: run on a domain controller or domain member under the current Windows logon, with no
+# remoting or credentials. Set powershell_path = "powershell.exe" on a host without PowerShell 7.
+provider "adds" {
+  alias     = "local"
+  transport = "local"
+}
 ```
 
 ## Authentication
@@ -64,16 +72,16 @@ This provider does not retrieve credentials or SSH keys from secret stores such 
 
 ### Required
 
-- `host` (String) Remote Windows host to connect to.
-- `transport` (String) Connection transport: `winrm` or `ssh`.
+- `transport` (String) Execution transport: `winrm`, `ssh`, or `local`. `local` runs PowerShell on the machine executing Terraform under the current Windows logon, with no remoting or credentials - intended for running on a domain controller or domain member.
 
 ### Optional
 
 - `domain_controller` (String) Optional domain controller to pass to Active Directory cmdlets via `-Server`.
 - `gpo_powershell_path` (String) PowerShell executable for scripts that import the `GroupPolicy` module, including GPO imports, the `adds_gpo` data source, JSON/backup exports, permissions, security filtering and WMI-filter assignment. Defaults to `powershell.exe`, where the module is native. Set this to `pwsh` to use the Windows PowerShell compatibility layer, which returns deserialized objects and can lose nested properties. LDAP-only GPO links and backup/JSON resource reads use `powershell_path` instead.
+- `host` (String) Windows host to connect to. Required for `winrm` and `ssh`; ignored by `local`, which runs on the machine executing Terraform.
 - `insecure` (Boolean) Skip certificate validation for WinRM TLS or host key validation for SSH.
 - `password` (String, Sensitive) Remote account password. Used by WinRM and optional for SSH.
-- `port` (Number) Remote port. Defaults to 5985 or 5986 for WinRM, and 22 for SSH.
+- `port` (Number) Remote port. Defaults to 5985 or 5986 for WinRM, and 22 for SSH. Unused by `local`.
 - `powershell_path` (String) PowerShell 7 executable path on the remote Windows host. Defaults to `pwsh`.
 - `ssh_host_key` (String) Authorized-key formatted SSH host public key.
 - `ssh_known_hosts_path` (String) Known hosts file for SSH host key verification.

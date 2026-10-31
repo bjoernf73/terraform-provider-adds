@@ -5,6 +5,7 @@ subcategory: ""
 description: |-
   Manages the full, ordered set of GPO links on a single OU, domain or site, plus whether it blocks inheritance from above. This resource is authoritative for target: any link present in Active Directory but not listed in links is removed.
   links order is significant: the first entry has the highest precedence (Set-GPLink -Order 1), matching how GPMC displays link order.
+  When a target's links are contributed by more than one Terraform configuration, use the non-authoritative adds_gpo_link (singular) instead, which manages one link without touching the others.
 ---
 
 # adds_gpo_links (Resource)
@@ -12,6 +13,8 @@ description: |-
 Manages the full, ordered set of GPO links on a single OU, domain or site, plus whether it blocks inheritance from above. This resource is **authoritative** for `target`: any link present in Active Directory but not listed in `links` is removed.
 
 `links` order is significant: the first entry has the highest precedence (`Set-GPLink -Order 1`), matching how GPMC displays link order.
+
+When a target's links are contributed by more than one Terraform configuration, use the non-authoritative `adds_gpo_link` (singular) instead, which manages one link without touching the others.
 
 ## Example Usage
 

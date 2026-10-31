@@ -281,6 +281,35 @@ The provider copes with this by enforcing `timeout_seconds` and retrying transpo
 failures (above). Setting `timeout_seconds` to **120** or more clears the worst of the
 delay band so a stalled connect is retried rather than failing the apply.
 
+## Local execution (no remoting)
+
+Set `transport = "local"` to run the provider's PowerShell on the **machine executing
+Terraform itself**, with no WinRM or SSH in between. This is for running Terraform
+directly on a domain controller or domain member under the account you are already logged
+in as:
+
+```hcl
+provider "adds" {
+  transport = "local"
+}
+```
+
+No `host`, `username`, `password` or key is needed — operations run under the current
+Windows logon, so the account running Terraform must have the directory rights for what it
+manages. Everything else behaves exactly as over WinRM or SSH: the same warm PowerShell
+host keeps the ActiveDirectory module loaded between operations, and GPO operations still
+route to Windows PowerShell via `gpo_powershell_path`.
+
+Notes:
+
+- **Windows only.** The ActiveDirectory and GroupPolicy modules the scripts use are
+  Windows-only, so `local` is meant to run on a domain-joined Windows host.
+- **PowerShell 7 may be absent.** `powershell_path` defaults to `pwsh`, which many domain
+  controllers do not have installed. Set `powershell_path = "powershell.exe"` to use
+  Windows PowerShell 5.1 instead; the scripts run under either edition.
+- **`domain_controller`** still applies — set it to pin writes to a specific replica, or
+  leave it unset to use the host's own locator.
+
 ## Timeouts
 
 `timeout_seconds` (default 30) bounds both the connection and each remote command. A
