@@ -28,6 +28,9 @@ type domainDataSource struct {
 type domainDataSourceModel struct {
 	ID                         types.String `tfsdk:"id"`
 	DistinguishedName          types.String `tfsdk:"distinguished_name"`
+	DomainPath                 types.String `tfsdk:"domain_path"`
+	ConfigurationPath          types.String `tfsdk:"configuration_path"`
+	SchemaPath                 types.String `tfsdk:"schema_path"`
 	DNSRoot                    types.String `tfsdk:"dns_root"`
 	NetBIOSName                types.String `tfsdk:"netbios_name"`
 	SID                        types.String `tfsdk:"sid"`
@@ -56,6 +59,18 @@ func (d *domainDataSource) Schema(_ context.Context, _ datasource.SchemaRequest,
 			"distinguished_name": schema.StringAttribute{
 				Computed:            true,
 				MarkdownDescription: "Distinguished name of the domain, for example `DC=contoso,DC=local`.",
+			},
+			"domain_path": schema.StringAttribute{
+				Computed:            true,
+				MarkdownDescription: "Distinguished name of the domain naming context, for example `DC=contoso,DC=local`. An alias of `distinguished_name`, named for use as a `path` in `adds_acl_export` and similar.",
+			},
+			"configuration_path": schema.StringAttribute{
+				Computed:            true,
+				MarkdownDescription: "Distinguished name of the configuration naming context, for example `CN=Configuration,DC=contoso,DC=local`.",
+			},
+			"schema_path": schema.StringAttribute{
+				Computed:            true,
+				MarkdownDescription: "Distinguished name of the schema naming context, for example `CN=Schema,CN=Configuration,DC=contoso,DC=local`.",
 			},
 			"dns_root": schema.StringAttribute{
 				Computed:            true,
@@ -125,6 +140,9 @@ func (d *domainDataSource) Read(ctx context.Context, _ datasource.ReadRequest, r
 	state := domainDataSourceModel{
 		ID:                         types.StringValue(domain.DistinguishedName),
 		DistinguishedName:          types.StringValue(domain.DistinguishedName),
+		DomainPath:                 types.StringValue(domain.DomainPath),
+		ConfigurationPath:          types.StringValue(domain.ConfigurationPath),
+		SchemaPath:                 types.StringValue(domain.SchemaPath),
 		DNSRoot:                    types.StringValue(domain.DNSRoot),
 		NetBIOSName:                types.StringValue(domain.NetBIOSName),
 		SID:                        types.StringValue(domain.SID),

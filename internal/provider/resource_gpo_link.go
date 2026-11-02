@@ -103,8 +103,10 @@ func (r *gpoLinksResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"gpo": schema.StringAttribute{
-							Required:            true,
-							MarkdownDescription: "GPO to link, by GUID or display name.",
+							Required: true,
+							MarkdownDescription: "GPO to link, by GUID or display name. When the GPO is managed by Terraform, " +
+								"reference the managing resource's `target_name` (for example `adds_json_gpo.example.target_name`) " +
+								"rather than a literal name, so Terraform creates the GPO before the link.",
 						},
 						"enabled": schema.BoolAttribute{
 							Optional:            true,

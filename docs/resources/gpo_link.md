@@ -57,7 +57,7 @@ resource "adds_gpo_link" "always_first" {
 
 ### Required
 
-- `gpo` (String) GPO to link, by GUID or display name. A GPO can be linked to a target at most once.
+- `gpo` (String) GPO to link, by GUID or display name. A GPO can be linked to a target at most once. When the GPO is managed by Terraform, reference the managing resource's `target_name` (for example `adds_json_gpo.example.target_name`) rather than a literal name, so Terraform creates the GPO before the link; a literal name creates no dependency and can race the GPO's creation.
 - `target` (String) OU, domain or site to link the GPO on. Accepts a slash-delimited path relative to the domain root (for example `Servers` or `Contoso/Servers`), a relative distinguished name such as `CN=Sites,CN=Configuration`, or a full distinguished name.
 
 ### Optional

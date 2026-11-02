@@ -10,6 +10,9 @@ const domainRead = "domain_read.ps1"
 
 type Domain struct {
 	DistinguishedName          string `json:"distinguished_name"`
+	DomainPath                 string `json:"domain_path"`
+	ConfigurationPath          string `json:"configuration_path"`
+	SchemaPath                 string `json:"schema_path"`
 	DNSRoot                    string `json:"dns_root"`
 	NetBIOSName                string `json:"netbios_name"`
 	SID                        string `json:"sid"`

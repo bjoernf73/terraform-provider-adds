@@ -51,7 +51,7 @@ if ($insertAt -lt 1) { $insertAt = 1 }
 if ($insertAt -gt ($remaining.Count + 1)) { $insertAt = $remaining.Count + 1 }
 
 $ours = [pscustomobject]@{ DN = $gpo.DN; Flags = $flags }
-$final = New-Object System.Collections.Generic.List[object]
+$final = [System.Collections.Generic.List[object]]::new()
 for ($i = 0; $i -lt $remaining.Count; $i++) {
     if (($i + 1) -eq $insertAt) { $final.Add($ours) }
     $final.Add($remaining[$i])

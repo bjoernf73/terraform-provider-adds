@@ -1,8 +1,9 @@
 $domainDN = Get-DomainDN
 
-$rootDse = Get-ADDSRootDSE @('rootDomainNamingContext', 'configurationNamingContext')
+$rootDse = Get-ADDSRootDSE @('rootDomainNamingContext', 'configurationNamingContext', 'schemaNamingContext')
 $forestDN = [string]$rootDse.Attributes['rootDomainNamingContext'][0]
 $configDN = [string]$rootDse.Attributes['configurationNamingContext'][0]
+$schemaDN = [string]$rootDse.Attributes['schemaNamingContext'][0]
 
 $domainEntry = Get-ADDSEntry -DistinguishedName $domainDN -Attributes @('objectSid', 'msDS-Behavior-Version', 'wellKnownObjects', 'fSMORoleOwner')
 
@@ -45,6 +46,9 @@ if ($crossRefs.Count -gt 0) {
 
 [pscustomobject]@{
     distinguished_name           = $domainDN
+    domain_path                  = $domainDN
+    configuration_path           = $configDN
+    schema_path                  = $schemaDN
     dns_root                     = ConvertFrom-DNToDnsName $domainDN
     netbios_name                 = $netbios
     sid                          = $sid

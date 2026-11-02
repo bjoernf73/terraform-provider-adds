@@ -73,7 +73,7 @@ Set-Acl -Path $aclPath -AclObject $acl -ErrorAction Stop
 
 # Echo the declared ACEs (in declared order) so state carries the configured spelling; the
 # rights were written exactly as given.
-$resultAces = New-Object System.Collections.Generic.List[object]
+$resultAces = [System.Collections.Generic.List[object]]::new()
 foreach ($context in $contexts) {
     $resultAces.Add((New-AclResultAce $context $context.Rights))
 }

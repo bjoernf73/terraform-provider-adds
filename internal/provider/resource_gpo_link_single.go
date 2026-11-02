@@ -78,8 +78,11 @@ func (r *gpoLinkResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 				},
 			},
 			"gpo": schema.StringAttribute{
-				Required:            true,
-				MarkdownDescription: "GPO to link, by GUID or display name. A GPO can be linked to a target at most once.",
+				Required: true,
+				MarkdownDescription: "GPO to link, by GUID or display name. A GPO can be linked to a target at most once. " +
+					"When the GPO is managed by Terraform, reference the managing resource's `target_name` (for example " +
+					"`adds_json_gpo.example.target_name`) rather than a literal name, so Terraform creates the GPO before the " +
+					"link; a literal name creates no dependency and can race the GPO's creation.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},

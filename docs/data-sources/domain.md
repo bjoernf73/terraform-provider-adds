@@ -44,14 +44,17 @@ output "domain" {
 ### Read-Only
 
 - `computers_container` (String) Distinguished name of the default computers container.
+- `configuration_path` (String) Distinguished name of the configuration naming context, for example `CN=Configuration,DC=contoso,DC=local`.
 - `distinguished_name` (String) Distinguished name of the domain, for example `DC=contoso,DC=local`.
 - `dns_root` (String) DNS name of the domain, for example `contoso.local`.
 - `domain_controllers_container` (String) Distinguished name of the domain controllers organizational unit.
 - `domain_mode` (String) Domain functional level.
+- `domain_path` (String) Distinguished name of the domain naming context, for example `DC=contoso,DC=local`. An alias of `distinguished_name`, named for use as a `path` in `adds_acl_export` and similar.
 - `forest` (String) DNS name of the forest root domain.
 - `id` (String) Distinguished name of the domain.
 - `infrastructure_master` (String) Host name of the infrastructure master.
 - `netbios_name` (String) Pre-Windows 2000 domain name, for example `CONTOSO`.
 - `pdc_emulator` (String) Host name of the PDC emulator.
+- `schema_path` (String) Distinguished name of the schema naming context, for example `CN=Schema,CN=Configuration,DC=contoso,DC=local`.
 - `sid` (String) Security identifier of the domain.
 - `users_container` (String) Distinguished name of the default users container.

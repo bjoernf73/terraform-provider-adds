@@ -26,7 +26,7 @@ foreach ($ace in @($payload.aces)) {
 
 $explicit = @($acl.Access | Where-Object { -not $_.IsInherited })
 $consumed = New-Object 'System.Collections.Generic.HashSet[int]'
-$resultAces = New-Object System.Collections.Generic.List[object]
+$resultAces = [System.Collections.Generic.List[object]]::new()
 
 # Declared ACEs first, in state order, so the stored list stays stable across reads.
 foreach ($context in $contexts) {

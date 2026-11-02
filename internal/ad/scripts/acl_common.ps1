@@ -139,3 +139,71 @@ function New-AclExtraAce($Ace) {
         inheritance           = if ($inheritance -eq 'None') { $null } else { $inheritance }
     }
 }
+
+# Converts a distinguished name to the portable form adds_acl's `target` accepts, so an exported
+# ACL replays against another domain with the same relative structure: the domain root becomes '',
+# a path made up only of OUs becomes a slash path (OU=B,OU=A -> 'A/B'), and anything else keeps its
+# relative DN (the domain's DC components stripped), which Convert-PathToDN re-appends the target
+# domain to. A slash path is only used when no OU value contains a slash, which would misparse.
+function ConvertFrom-DNToAclPath([string]$DistinguishedName, [string]$DomainDN) {
+    $dn = ([string]$DistinguishedName).Trim()
+    if ($dn -ieq $DomainDN) {
+        return ''
+    }
+
+    $relative = $dn
+    $suffix = ',' + $DomainDN
+    if ($dn.Length -gt $suffix.Length -and $dn.Substring($dn.Length - $suffix.Length) -ieq $suffix) {
+        $relative = $dn.Substring(0, $dn.Length - $suffix.Length)
+    }
+
+    $segments = @($relative -split '(?<!\\),')
+    $allOU = $true
+    foreach ($segment in $segments) {
+        if ($segment.Trim() -notmatch '^OU=') {
+            $allOU = $false
+            break
+        }
+    }
+
+    if ($allOU) {
+        $values = @($segments | ForEach-Object { ($_ -replace '^\s*OU=', '').Trim() })
+        if (-not ($values | Where-Object { $_ -match '/' })) {
+            [array]::Reverse($values)
+            return ($values -join '/')
+        }
+    }
+
+    return $relative
+}
+
+# Subtree/base LDAP search that returns each entry's DACL alongside the requested attributes, in
+# pages, so a whole-domain export is not truncated by the server's size limit. The DACL control
+# asks for owner/group/DACL only (never the SACL, which needs a privilege). Throws nothing special
+# for a missing base: the caller surfaces that.
+function Search-ADDSExportEntries([string]$BaseDN, [string]$Filter, [System.DirectoryServices.Protocols.SearchScope]$Scope, [string[]]$Attributes) {
+    $connection = Get-ADDSLdapConnection
+    $pageControl = New-Object System.DirectoryServices.Protocols.PageResultRequestControl(1000)
+    $masks = [System.DirectoryServices.Protocols.SecurityMasks]::Owner -bor [System.DirectoryServices.Protocols.SecurityMasks]::Group -bor [System.DirectoryServices.Protocols.SecurityMasks]::Dacl
+    $sdControl = New-Object System.DirectoryServices.Protocols.SecurityDescriptorFlagControl($masks)
+
+    $results = [System.Collections.Generic.List[object]]::new()
+    while ($true) {
+        $request = New-Object System.DirectoryServices.Protocols.SearchRequest($BaseDN, $Filter, $Scope, $Attributes)
+        [void]$request.Controls.Add($pageControl)
+        [void]$request.Controls.Add($sdControl)
+
+        $response = $connection.SendRequest($request)
+        foreach ($entry in $response.Entries) {
+            $results.Add($entry)
+        }
+
+        $pageResponse = $response.Controls | Where-Object { $_ -is [System.DirectoryServices.Protocols.PageResultResponseControl] } | Select-Object -First 1
+        if ($null -eq $pageResponse -or $pageResponse.Cookie.Length -eq 0) {
+            break
+        }
+        $pageControl.Cookie = $pageResponse.Cookie
+    }
+
+    return $results
+}

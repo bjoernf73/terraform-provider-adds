@@ -75,7 +75,7 @@ resource "adds_gpo_links" "servers" {
 
 Required:
 
-- `gpo` (String) GPO to link, by GUID or display name.
+- `gpo` (String) GPO to link, by GUID or display name. When the GPO is managed by Terraform, reference the managing resource's `target_name` (for example `adds_json_gpo.example.target_name`) rather than a literal name, so Terraform creates the GPO before the link.
 
 Optional:
 

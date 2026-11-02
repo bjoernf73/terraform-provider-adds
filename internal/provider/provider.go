@@ -209,6 +209,7 @@ func (p *addsProvider) DataSources(_ context.Context) []func() datasource.DataSo
 		NewGPODataSource,
 		NewJsonGPOExportDataSource,
 		NewBackupGPOExportDataSource,
+		NewACLExportDataSource,
 	}
 }
 

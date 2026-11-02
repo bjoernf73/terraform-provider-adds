@@ -48,13 +48,13 @@ catch {
 }
 
 # Scopes of the groups this group is a MEMBER OF, and of the group members it CONTAINS.
-$parentScopes = New-Object System.Collections.Generic.List[object]
+$parentScopes = [System.Collections.Generic.List[object]]::new()
 foreach ($dn in @($group.memberOf)) {
     $parent = Get-ADObject -Identity $dn -Properties name, groupType @serverParams -ErrorAction Stop
     $parentScopes.Add((New-ScopeInfo $parent.Name (Get-ScopeFromGroupType $parent.groupType) 'memberOf'))
 }
 
-$memberScopes = New-Object System.Collections.Generic.List[object]
+$memberScopes = [System.Collections.Generic.List[object]]::new()
 foreach ($dn in @($group.member)) {
     $member = Get-ADObject -Identity $dn -Properties name, objectClass, groupType @serverParams -ErrorAction Stop
     if (@($member.objectClass) -contains 'group') {
@@ -64,7 +64,7 @@ foreach ($dn in @($group.member)) {
 
 # Evaluate each conversion step against Active Directory's documented scope nesting rules.
 # Universal -> DomainLocal has no member/membership constraint and is omitted.
-$blocking = New-Object System.Collections.Generic.List[object]
+$blocking = [System.Collections.Generic.List[object]]::new()
 $from = $current
 foreach ($to in (Get-GroupScopePath $current $desired)) {
     if ($from -eq 'Global' -and $to -eq 'Universal') {
